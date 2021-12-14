@@ -11,9 +11,11 @@ See the Mulan PSL v2 for more details. */
 // Created by Wangyunlai on 2021/5/14.
 //
 
-#include "sql/executor/tuple.h"
 #include "common/log/log.h"
+#include "sql/executor/tuple.h"
 #include "storage/common/table.h"
+
+#include <algorithm>
 
 Tuple::Tuple(const Tuple &other) {
     LOG_PANIC("Copy constructor of tuple is not supported");
@@ -98,7 +100,7 @@ int TupleSchema::index_of_field(const char *table_name, const char *field_name,
     return -1;
 }
 
-void TupleSchema::print(std::ostream &os,bool multi) const {
+void TupleSchema::print(std::ostream &os, bool multi) const {
     if (fields_.empty()) {
         os << "No schema";
         return;
@@ -163,6 +165,7 @@ void TupleSet::merge(Tuple &&tuple) {
     return;
 }
 
+<<<<<<< HEAD
 void TupleSet::merge(Tuple &&tuple,int group_index) {
     if (tuples_.empty() || group_index == -1) {
         tuples_.emplace_back(std::move(tuple));
@@ -179,9 +182,42 @@ void TupleSet::merge(Tuple &&tuple,int group_index) {
     return;
 }
 
+=======
+>>>>>>> 4c116ba7e945c058a6ad1103a8305082d79f1516
 void TupleSet::clear() {
     tuples_.clear();
     schema_.clear();
+}
+
+/**
+ * @brief Generate a funtion that to be used as the third parameter of std::stable_sort.
+ * 
+ * @param attr Sort key.
+ * @return std::function<bool(const Tuple &, const Tuple &)>
+ */
+std::function<bool(const Tuple &, const Tuple &)> TupleSet::get_cmp_func(const OrderBy &attr) {
+    int index = schema_.index_of_field(attr.attr.relation_name, attr.attr.attribute_name, AggregationFunc::None);
+    assert(index != -1);
+    return [attr, index] (const Tuple &u, const Tuple &v) -> bool {
+        int res = u.values().at(index)->compare(*v.values().at(index));
+        if (attr.order_type == OrderType::Asc) {
+            return res < 0;
+        } else {
+            return res > 0;
+        }
+    };
+}
+
+/**
+ * @brief Sort a tupleset according to given rules.
+ *
+ * @param size Number of rules.
+ * @param attrs Array of rules.
+ */
+void TupleSet::sort(size_t size, OrderBy *attrs) {
+    for (size_t i = 0; i < size; i++) {
+        std::stable_sort(tuples_.begin(), tuples_.end(), get_cmp_func(attrs[i]));
+    }
 }
 
 void TupleSet::print(std::ostream &os, bool multi) const {
@@ -190,7 +226,7 @@ void TupleSet::print(std::ostream &os, bool multi) const {
         return;
     }
 
-    schema_.print(os,multi);
+    schema_.print(os, multi);
 
     for (const Tuple &item : tuples_) {
         const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
