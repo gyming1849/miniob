@@ -205,7 +205,7 @@ void end_trx_if_need(Session *session, Trx *trx, bool all_right) {
     }
 }
 RC ExecuteStage::check_groupby(const Selects &selects, Table **tables) {
-    for (int i = 0; i < selects.group_by_num; i++) {
+    for (int i = 0; i < selects.groupby_num; i++) {
         const RelAttr &attr = selects.groupby_attrs[i];
         if (attr.relation_name == nullptr) {
             LOG_WARN("GroupBy missing relation name", attr.attribute_name);
@@ -231,7 +231,7 @@ RC ExecuteStage::check_groupby(const Selects &selects, Table **tables) {
     return RC::SUCCESS;
 }
 RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema &schema_result) {
-    for (int i = 0; i < selects.attrattr_num; i++) {
+    for (int i = 0; i < selects.attr_num; i++) {
         const RelAttr &attr = selects.attributes[i];
         if (attr.relation_name != nullptr) {
             int flag = 0;
@@ -241,10 +241,10 @@ RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema 
                     if (strcmp("*", attr.relation_name) == 0) {
                         static TupleSchema tmp;
                         TupleSchema::from_table(tables[j], tmp);
-                        output_schema.append(temp);
+                        schema_result.append(tmp);
                         ;
                     } else {
-                        if (t->table_meta().field(attr.attribute_name) == nullptr) {
+                        if (tables[j]->table_meta().field(attr.attribute_name) == nullptr) {
                             LOG_WARN("No such field [%s] in table [%s]", attr.attribute_name,
                                      attr.relation_name);
                             return RC::SCHEMA_FIELD_NOT_EXIST;
@@ -264,24 +264,119 @@ RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema 
                 TupleSchema::from_table(tables[j], tmp);
                 schema_result.append(tmp);
             }
+        } else if (attr.aggregation_type != None &&
+                   (attr.is_const == 1 && strcmp("*", attr.attribute_name) == 0)) {
+            auto field = tables[0]->table_meta().field(0);
+            schema_result.add(field->type(), tables[0]->name(), attr.attribute_name,
+                              attr.aggregation_type);
+        }
+        if (attr.aggregation_type == AggregationFunc::None) {
+            int flag = 0;
+            for (size_t j = 0; j < selects.groupby_num; j++) {
+                const RelAttr &groupby_attr = selects.groupby_attrs[j];
+                if (strcmp(attr.attribute_name, groupby_attr.attribute_name) == 0) {
+                    flag = 1;
+                    break;
+                }
+            }
+            if (selects.groupby_num > 0 && flag == 0) {
+                LOG_WARN("Select attribute [%s] is not in groupby", attr.attribute_name);
+                return RC::MISMATCH;
+            }
         }
     }
+    return RC::SUCCESS;
 }
 RC ExecuteStage::init_select(const char *db, const Selects &selects, Table **tables,
                              TupleSchema &schema_result) {
     for (int i = 0; i < selects.relation_num; i++) {
-        tables[i] = DefaultHandler::find_table(db, selects.relations[i]);
+        tables[i] = DefaultHandler::get_default().find_table(db, selects.relations[i]);
         if (tables[i] == nullptr) {
             LOG_WARN("No such table [%s] in db [%s]", selects.relations[i], db);
             return RC::SCHEMA_TABLE_NOT_EXIST;
         }
     }
 
-    Rc rc = check_groupby(selects, tables);
+    RC rc = check_groupby(selects, tables);
     if (rc != RC::SUCCESS) {
         return rc;
     }
-    rc = check_attr();
+    rc = check_attr(selects, tables, schema_result);
+    if (rc != RC::SUCCESS) {
+        return rc;
+    }
+    bool left_flag = false, right_flag = false;
+    size_t left_idx = 0, right_idx = 0;
+    for (int i = 0; i < selects.condition_num; i++) {
+        auto &cur = selects.conditions[i];
+        auto &left = cur.left_attr, &right = cur.right_attr;
+        for (int j = 0; j < selects.relation_num; j++) {
+            if (cur.left_is_attr == 1) {
+                if (left.relation_name != nullptr &&
+                    strcmp(left.relation_name, selects.relations[j])) {
+                    left_flag = true;
+                    left_idx = j;
+                } else {
+                    LOG_WARN("Condition missing relation name", left.relation_name);
+                    return RC::SCHEMA_FIELD_MISSING;
+                }
+            }
+            if (cur.right_is_attr == 1) {
+                if (right.relation_name != nullptr &&
+                    strcmp(right.relation_name, selects.relations[j])) {
+                    right_flag = true;
+                    right_idx = j;
+                } else {
+                    LOG_WARN("Condition missing relation name", right.relation_name);
+                    return RC::SCHEMA_FIELD_MISSING;
+                }
+            }
+        }
+        if (cur.left_is_attr == 1 && left.relation_name != nullptr) {
+            if (left_flag == 0) {
+                LOG_WARN("left attr's relation [%s] is not exist", left.relation_name);
+                return RC::MISMATCH;
+            }
+            if (tables[left_idx]->table_meta().field(left.attribute_name) == nullptr) {
+                LOG_WARN("left attr [%s] is not exist in [%s]", left.attribute_name,
+                         left.relation_name);
+                return RC::SCHEMA_FIELD_NOT_EXIST;
+            }
+        }
+        if (cur.right_is_attr == 1 && right.relation_name != nullptr) {
+            if (right_flag == 0) {
+                LOG_WARN("right attr's relation [%s] is not exist", right.relation_name);
+                return RC::MISMATCH;
+            }
+            if (tables[right_idx]->table_meta().field(right.attribute_name) == nullptr) {
+                LOG_WARN("right attr [%s] is not exist in [%s]", right.attribute_name,
+                         right.relation_name);
+                return RC::SCHEMA_FIELD_NOT_EXIST;
+            }
+        }
+    }
+    for (size_t i = 0; i < selects.orderby_num; i++) {
+        const OrderBy &order_by = selects.orderby_attrs[i];
+        const RelAttr &attr = order_by.attr;
+        if (attr.relation_name != nullptr) {
+            int flag = 0;
+            for (size_t j = 0; j < selects.relation_num; j++) {
+                if (0 == strcmp(attr.relation_name, selects.relations[j])) {
+                    if (nullptr == tables[j]->table_meta().field(attr.attribute_name)) {
+                        LOG_WARN("No such field [%s] in table [%s]", attr.attribute_name,
+                                 attr.relation_name);
+                        return RC::SCHEMA_FIELD_NOT_EXIST;
+                    }
+                    flag = 1;
+                    break;
+                }
+                if (flag == 0) {
+                    LOG_WARN("Orderby's relation [%s] is not exist", attr.relation_name);
+                    return RC::MISMATCH;
+                }
+            }
+        }
+    }
 }
 // 这里没有对输入的某些信息做合法性校验，比如查询的列名、where条件中的列名等，没有做必要的合法性校验
 // 需要补充上这一部分. 校验部分也可以放在resolve，不过跟execution放一起也没有关系
@@ -292,7 +387,8 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     Trx *trx = session->current_trx();
     const Selects &selects = sql->sstr.selection;
     Table *tables[selects.relation_num];
-    rc = check_select(db, selects, tables, result);
+    TupleSchema schema_result;
+    rc = init_select(db, selects, tables, schema_result);
     // 把所有的表和只跟这张表关联的condition都拿出来，生成最底层的select 执行节点
     std::vector<SelectExeNode *> select_nodes;
     for (size_t i = 0; i < selects.relation_num; i++) {
