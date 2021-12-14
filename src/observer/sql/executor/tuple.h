@@ -76,7 +76,9 @@ public:
   const char *field_name() const {
     return field_name_.c_str();
   }
-
+  const AggregationFunc aggregation_type() const {
+    return aggregation_type_;
+  }
   std::string to_string() const;
 private:
   AttrType  type_;
@@ -103,7 +105,7 @@ public:
     return fields_[index];
   }
 
-  int index_of_field(const char *table_name, const char *field_name) const;
+  int index_of_field(const char *table_name, const char *field_name,const AggregationFunc aggregation_type) const;
   void clear() {
     fields_.clear();
   }
@@ -132,6 +134,7 @@ public:
   void add(Tuple && tuple);
 
   void clear();
+  void merge(Tuple &&tuple);
 
   bool is_empty() const;
   int size() const;
