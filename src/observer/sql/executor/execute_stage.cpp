@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 Xie Meiyi(xiemeiyi@hust.edu.cn) and OceanBase and/or its affiliates. All
 rights reserved. miniob is licensed under Mulan PSL v2. You can use this software according to the
 terms and conditions of the Mulan PSL v2. You may obtain a copy of Mulan PSL v2 at:
-http://license.coscl.org.cn/MulanPSL2
+          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
@@ -253,20 +253,18 @@ RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema 
             for (int j = 0; j < (int)selects.relation_num; j++) {
                 if (strcmp(attr.relation_name, selects.relations[j]) == 0) {
                     flag = 1;
-                    if (strcmp("*", attr.relation_name) == 0) {
-                        static TupleSchema tmp;
+                    if (strcmp("*", attr.attribute_name) == 0) {
+                        TupleSchema tmp;
                         TupleSchema::from_table(tables[j], tmp);
                         schema_result.append(tmp);
                         ;
-                    } else {
-                        if (tables[j]->table_meta().field(attr.attribute_name) == nullptr) {
-                            LOG_WARN("No such field [%s] in table [%s]", attr.attribute_name,
-                                     attr.relation_name);
-                            return RC::SCHEMA_FIELD_NOT_EXIST;
-                        }
+                    } else if (tables[j]->table_meta().field(attr.attribute_name) == nullptr) {
+                        LOG_WARN("No such field [%s] in table [%s]", attr.attribute_name,
+                                 attr.relation_name);
+                        return RC::SCHEMA_FIELD_NOT_EXIST;
+                    } else
                         schema_add_field(tables[j], attr.attribute_name, attr.aggregation_type,
                                          schema_result);
-                    }
                 }
             }
             if (flag == 0) {
@@ -394,8 +392,14 @@ RC ExecuteStage::init_select(const char *db, const Selects &selects, Table **tab
     }
     return RC::SUCCESS;
 }
-std::pair<bool, std::string> is_single_query(const Selects &selects) {
 
+/**
+ * @brief Check whether a select query is about a single table.
+ * 
+ * @param selects The query to be determined.
+ * @return std::pair<bool, std::string> 
+ */
+std::pair<bool, std::string> is_single_query(const Selects &selects) {
     std::set<std::string> table_names;
     for (size_t i = 0; i < selects.relation_num; i++) {
         const char *table_name = selects.relations[i];
@@ -405,6 +409,7 @@ std::pair<bool, std::string> is_single_query(const Selects &selects) {
     return std::make_pair(false, std::string());
 }
 
+<<<<<<< HEAD
 void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples, const TupleSchema group_by_schema) {
   const TupleSchema &schema = all_tuples.schema();
   const auto &output_schema = output_tuples.schema();
@@ -454,6 +459,18 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples, const Tuple
 
 // 这里没有对输入的某些信息做合法性校验，比如查询的列名、where条件中的列名等，没有做必要的合法性校验
 // 需要补充上这一部分. 校验部分也可以放在resolve，不过跟execution放一起也没有关系
+=======
+/**
+ * @brief Execute a query. 
+ * 这里没有对输入的某些信息做合法性校验，比如查询的列名、where条件中的列名等，没有做必要的合法性校验
+ * 需要补充上这一部分. 校验部分也可以放在resolve，不过跟execution放一起也没有关系
+ * 
+ * @param db 
+ * @param sql The query to be executed.
+ * @param session_event 
+ * @return RC 
+ */
+>>>>>>> a6fec5263dc3fb116a960e4595c29f48f7dea133
 RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_event) {
 
     RC rc = RC::SUCCESS;
@@ -478,7 +495,8 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     Table *tables[selects.relation_num];
     TupleSchema schema_result;
     rc = init_select(db, selects, tables, schema_result);
-    // 把所有的表和只跟这张表关联的condition都拿出来，生成最底层的select 执行节点
+
+    // 把所有的表和只跟这张表关联的condition都拿出来，生成最底层的 select 执行节点
     std::vector<SelectExeNode *> select_nodes;
     for (size_t i = 0; i < selects.relation_num; i++) {
         const char *table_name = selects.relations[i];
@@ -535,10 +553,10 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         }
 
         output_result.set_schema(schema_result);
-        output_result.print(ss);
+        output_result.print(ss, 1);
     } else {
         // 当前只查询一张表，直接返回结果即可
-        tuple_sets.front().print(ss);
+        tuple_sets.front().print(ss, 0);
     }
 
     for (SelectExeNode *&tmp_node : select_nodes) {
@@ -548,6 +566,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     end_trx_if_need(session, trx, true);
     return rc;
 }
+
 RC ExecuteStage::do_cartesian(std::vector<TupleSet> &tuple_sets,
                               std::vector<Condition> &remain_conditions, TupleSet &result) {
     TupleSchema tmp;
@@ -559,7 +578,7 @@ RC ExecuteStage::do_cartesian(std::vector<TupleSet> &tuple_sets,
     result = TupleSet(tmp);
     auto *values = new std::shared_ptr<TupleValue>[tmp.fields().size()];
     RC rc = dfs(tuple_sets, remain_conditions, values, 0, result, tuple_sets.crbegin());
-    delete values;
+    delete[] values;
     return rc;
 }
 bool cmp(const TupleValue *left, const TupleValue *right, const CompOp &comp) {
