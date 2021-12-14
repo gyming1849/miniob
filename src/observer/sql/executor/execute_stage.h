@@ -17,6 +17,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/seda/stage.h"
 #include "rc.h"
 #include "sql/parser/parse.h"
+#include "storage/common/table.h"
+#include "sql/executor/tuple.h"
 
 class SessionEvent;
 
@@ -47,6 +49,6 @@ private:
     RC check_attr(const Selects &selects, Table **tables, TupleSchema &schema_result);
     RC init_select(const char *db, const Selects &selects, Table **tables,
                    TupleSchema &schema_result);
+    RC do_cartesian(std::vector<TupleSet> tuple_sets, std::vector<Condition> &remain_conditions, TupleSet &result);
 };
-
 #endif  //__OBSERVER_SQL_EXECUTE_STAGE_H__

@@ -11,9 +11,9 @@ See the Mulan PSL v2 for more details. */
 // Created by Longda on 2021/4/13.
 //
 
+#include <set>
 #include <sstream>
 #include <string>
-#include <set>
 
 #include "execute_stage.h"
 
@@ -205,15 +205,29 @@ void end_trx_if_need(Session *session, Trx *trx, bool all_right) {
         }
     }
 }
+static RC schema_add_field(Table *table, const char *field_name, AggregationFunc aggregation_type,
+                           TupleSchema &schema) {
+    const FieldMeta *field_meta = table->table_meta().field(field_name);
+    if (nullptr == field_meta) {
+        LOG_WARN("No such field. %s.%s", table->name(), field_name);
+        return RC::SCHEMA_FIELD_MISSING;
+    }
+    if (aggregation_type == None)
+        schema.add_if_not_exists(field_meta->type(), table->name(), field_meta->name());
+    else
+        schema.add(field_meta->type(), table->name(), field_meta->name(), aggregation_type);
+    return RC::SUCCESS;
+}
+
 RC ExecuteStage::check_groupby(const Selects &selects, Table **tables) {
-    for (int i = 0; i < selects.groupby_num; i++) {
+    for (int i = 0; i < (int)selects.groupby_num; i++) {
         const RelAttr &attr = selects.groupby_attrs[i];
         if (attr.relation_name == nullptr) {
             LOG_WARN("GroupBy missing relation name", attr.attribute_name);
             return RC::SCHEMA_FIELD_MISSING;
         }
         int flag = 0;
-        for (int j = 0; j < selects.relation_num; j++) {
+        for (int j = 0; j < (int)selects.relation_num; j++) {
             if (strcmp(attr.relation_name, selects.relations[j]) == 0) {
                 if (tables[j]->table_meta().field(attr.attribute_name)) {
                     LOG_WARN("No such field [%s] in table [%s]", attr.attribute_name,
@@ -236,7 +250,7 @@ RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema 
         const RelAttr &attr = selects.attributes[i];
         if (attr.relation_name != nullptr) {
             int flag = 0;
-            for (int j = 0; j < selects.relation_num; j++) {
+            for (int j = 0; j < (int)selects.relation_num; j++) {
                 if (strcmp(attr.relation_name, selects.relations[j]) == 0) {
                     flag = 1;
                     if (strcmp("*", attr.relation_name) == 0) {
@@ -290,7 +304,7 @@ RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema 
 }
 RC ExecuteStage::init_select(const char *db, const Selects &selects, Table **tables,
                              TupleSchema &schema_result) {
-    for (int i = 0; i < selects.relation_num; i++) {
+    for (int i = 0; i < (int)selects.relation_num; i++) {
         tables[i] = DefaultHandler::get_default().find_table(db, selects.relations[i]);
         if (tables[i] == nullptr) {
             LOG_WARN("No such table [%s] in db [%s]", selects.relations[i], db);
@@ -308,10 +322,10 @@ RC ExecuteStage::init_select(const char *db, const Selects &selects, Table **tab
     }
     bool left_flag = false, right_flag = false;
     size_t left_idx = 0, right_idx = 0;
-    for (int i = 0; i < selects.condition_num; i++) {
+    for (int i = 0; i < (int)selects.condition_num; i++) {
         auto &cur = selects.conditions[i];
         auto &left = cur.left_attr, &right = cur.right_attr;
-        for (int j = 0; j < selects.relation_num; j++) {
+        for (int j = 0; j <(int) selects.relation_num; j++) {
             if (cur.left_is_attr == 1) {
                 if (left.relation_name != nullptr &&
                     strcmp(left.relation_name, selects.relations[j])) {
@@ -378,16 +392,17 @@ RC ExecuteStage::init_select(const char *db, const Selects &selects, Table **tab
             }
         }
     }
+    return RC::SUCCESS;
 }
-std::pair<bool,std::string> is_single_query(const Selects &selects) {
-    
+std::pair<bool, std::string> is_single_query(const Selects &selects) {
+
     std::set<std::string> table_names;
     for (size_t i = 0; i < selects.relation_num; i++) {
         const char *table_name = selects.relations[i];
-        if(table_name!=nullptr) table_names.insert(std::string(table_name));
+        if (table_name != nullptr) table_names.insert(std::string(table_name));
     }
-    if(table_names.size()==1) return std::make_pair(true,(*table_names.begin()));
-    return std::make_pair(false,std::string());
+    if (table_names.size() == 1) return std::make_pair(true, (*table_names.begin()));
+    return std::make_pair(false, std::string());
 }
 // 这里没有对输入的某些信息做合法性校验，比如查询的列名、where条件中的列名等，没有做必要的合法性校验
 // 需要补充上这一部分. 校验部分也可以放在resolve，不过跟execution放一起也没有关系
@@ -398,18 +413,20 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     Trx *trx = session->current_trx();
     Selects &selects = sql->sstr.selection;
 
-    std::pair<bool,std::string> single_query=is_single_query(selects);
-    if(single_query.first) {
-        for(int i=0;i<selects.groupby_num;i++) {
-            auto &attr=selects.groupby_attrs[i];
-            if(!attr.is_const&&attr.relation_name==nullptr) strcpy(attr.relation_name,single_query.second.c_str());
+    std::pair<bool, std::string> single_query = is_single_query(selects);
+    if (single_query.first) {
+        for (int i = 0; i < (int)selects.groupby_num; i++) {
+            auto &attr = selects.groupby_attrs[i];
+            if (!attr.is_const && attr.relation_name == nullptr)
+                strcpy(attr.relation_name, single_query.second.c_str());
         }
-        for(int i=0;i<selects.orderby_num;i++) {
-            auto &attr=selects.orderby_attrs[i].attr;
-            if(!attr.is_const&&attr.relation_name==nullptr) strcpy(attr.relation_name,single_query.second.c_str());
+        for (int i = 0; i < (int)selects.orderby_num; i++) {
+            auto &attr = selects.orderby_attrs[i].attr;
+            if (!attr.is_const && attr.relation_name == nullptr)
+                strcpy(attr.relation_name, single_query.second.c_str());
         }
     }
-    
+
     Table *tables[selects.relation_num];
     TupleSchema schema_result;
     rc = init_select(db, selects, tables, schema_result);
@@ -454,6 +471,23 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     std::stringstream ss;
     if (tuple_sets.size() > 1) {
         // 本次查询了多张表，需要做join操作
+        std::vector<Condition> remain_conditions;
+        for (int i = 0; i < (int)selects.condition_num; i++) {
+            const Condition &condition = selects.conditions[i];
+            if (condition.left_is_attr && condition.right_is_attr &&
+                condition.left_attr.relation_name != condition.right_attr.relation_name) {
+                remain_conditions.push_back(condition);
+            }
+        }
+        TupleSet output_result(schema_result);
+        // RC rc = do_cartesian(tuple_sets, remain_conditions, output_result);
+        RC rc = RC::SUCCESS;
+        if (rc != RC::SUCCESS && rc != RC::MISMATCH) {
+            return rc;
+        }
+
+        output_result.set_schema(schema_result);
+        output_result.print(ss);
     } else {
         // 当前只查询一张表，直接返回结果即可
         tuple_sets.front().print(ss);
@@ -466,7 +500,18 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     end_trx_if_need(session, trx, true);
     return rc;
 }
-
+RC ExecuteStage::do_cartesian(std::vector<TupleSet> tuple_sets,
+                              std::vector<Condition> &remain_conditions, TupleSet &result) {
+    TupleSchema tmp;
+    for (int i = tuple_sets.size() - 1; i >= 0; i--) {
+        TupleSet &tuple_set = tuple_sets[i];
+        tmp.append(tuple_set.get_schema());
+    }
+    tmp.append(result.schema());
+    result = TupleSet(tmp);
+    // rc = cartesian(tuple_sets, condition_num, conditions, values, 0, result, table_num - 1);
+    return RC::SUCCESS;
+}
 bool match_table(const Selects &selects, const char *table_name_in_condition,
                  const char *table_name_to_match) {
     if (table_name_in_condition != nullptr) {
@@ -476,19 +521,6 @@ bool match_table(const Selects &selects, const char *table_name_in_condition,
     return selects.relation_num == 1;
 }
 
-static RC schema_add_field(Table *table, const char *field_name, AggregationFunc aggregation_type,
-                           TupleSchema &schema) {
-    const FieldMeta *field_meta = table->table_meta().field(field_name);
-    if (nullptr == field_meta) {
-        LOG_WARN("No such field. %s.%s", table->name(), field_name);
-        return RC::SCHEMA_FIELD_MISSING;
-    }
-    if (aggregation_type == None)
-        schema.add_if_not_exists(field_meta->type(), table->name(), field_meta->name());
-    else
-        schema.add(field_meta->type(), table->name(), field_meta->name(), aggregation_type);
-    return RC::SUCCESS;
-}
 
 // 把所有的表和只跟这张表关联的condition都拿出来，生成最底层的select 执行节点
 RC create_selection_executor(Trx *trx, Selects &selects, const char *db, const char *table_name,
@@ -500,11 +532,7 @@ RC create_selection_executor(Trx *trx, Selects &selects, const char *db, const c
         LOG_WARN("No such table [%s] in db [%s]", table_name, db);
         return RC::SCHEMA_TABLE_NOT_EXIST;
     }
-    bool is_aggregation = false;
-    for (int i = selects.attr_num - 1; i >= 0; i--) {
-        const RelAttr &attr = selects.attributes[i];
-        if (attr.aggregation_type != None) is_aggregation = true;
-    }
+
     for (int i = selects.attr_num - 1; i >= 0; i--) {
         const RelAttr &attr = selects.attributes[i];
         if (nullptr == attr.relation_name || 0 == strcmp(table_name, attr.relation_name)) {

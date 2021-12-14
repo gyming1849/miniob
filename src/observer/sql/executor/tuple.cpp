@@ -70,7 +70,7 @@ void TupleSchema::from_table(const Table *table, TupleSchema &schema) {
   for (int i = 0; i < field_num; i++) {
     const FieldMeta *field_meta = table_meta.field(i);
     if (field_meta->visible()) {
-      schema.add(field_meta->type(), table_name, field_meta->name());
+      schema.add(field_meta->type(), table_name, field_meta->name(),AggregationFunc::None);
     }
   }
 }
@@ -88,7 +88,7 @@ void TupleSchema::add_if_not_exists(AttrType type, const char *table_name, const
     }
   }
 
-  add(type, table_name, field_name);
+  add(type, table_name, field_name,AggregationFunc::None);
 }
 
 void TupleSchema::append(const TupleSchema &other) {

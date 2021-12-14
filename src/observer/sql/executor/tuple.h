@@ -62,8 +62,8 @@ private:
 
 class TupleField {
 public:
-  TupleField(AttrType type, const char *table_name, const char *field_name) :
-          type_(type), table_name_(table_name), field_name_(field_name){
+  TupleField(AttrType type, const char *table_name, const char *field_name, AggregationFunc aggregation_type) :
+          type_(type), table_name_(table_name), field_name_(field_name),aggregation_type_(aggregation_type){
   }
 
   AttrType  type() const{
@@ -82,6 +82,7 @@ private:
   AttrType  type_;
   std::string table_name_;
   std::string field_name_;
+  AggregationFunc aggregation_type_;
 };
 
 class TupleSchema {
