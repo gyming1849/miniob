@@ -487,10 +487,10 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         }
 
         output_result.set_schema(schema_result);
-        output_result.print(ss);
+        output_result.print(ss,1);
     } else {
         // 当前只查询一张表，直接返回结果即可
-        tuple_sets.front().print(ss);
+        tuple_sets.front().print(ss,0);
     }
 
     for (SelectExeNode *&tmp_node : select_nodes) {
@@ -511,7 +511,7 @@ RC ExecuteStage::do_cartesian(std::vector<TupleSet> &tuple_sets,
     result = TupleSet(tmp);
     auto *values = new std::shared_ptr<TupleValue>[tmp.fields().size()];
     RC rc = dfs(tuple_sets, remain_conditions, values, 0, result, tuple_sets.crbegin());
-    delete values;
+    delete[] values;
     return rc;
 }
 bool cmp(const TupleValue *left, const TupleValue *right, const CompOp &comp) {
