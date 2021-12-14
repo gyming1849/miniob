@@ -253,20 +253,20 @@ RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema 
             for (int j = 0; j < (int)selects.relation_num; j++) {
                 if (strcmp(attr.relation_name, selects.relations[j]) == 0) {
                     flag = 1;
-                    if (strcmp("*", attr.relation_name) == 0) {
+                    if (strcmp("*", attr.attribute_name) == 0) {
                         static TupleSchema tmp;
                         TupleSchema::from_table(tables[j], tmp);
                         schema_result.append(tmp);
                         ;
-                    } else {
-                        if (tables[j]->table_meta().field(attr.attribute_name) == nullptr) {
-                            LOG_WARN("No such field [%s] in table [%s]", attr.attribute_name,
-                                     attr.relation_name);
-                            return RC::SCHEMA_FIELD_NOT_EXIST;
-                        }
-                        schema_add_field(tables[j], attr.attribute_name, attr.aggregation_type,
-                                         schema_result);
                     }
+                    if (strcmp("*", attr.attribute_name) != 0 &&
+                        tables[j]->table_meta().field(attr.attribute_name) == nullptr) {
+                        LOG_WARN("No such field [%s] in table [%s]", attr.attribute_name,
+                                 attr.relation_name);
+                        return RC::SCHEMA_FIELD_NOT_EXIST;
+                    }
+                    schema_add_field(tables[j], attr.attribute_name, attr.aggregation_type,
+                                     schema_result);
                 }
             }
             if (flag == 0) {
@@ -487,10 +487,10 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         }
 
         output_result.set_schema(schema_result);
-        output_result.print(ss,1);
+        output_result.print(ss, 1);
     } else {
         // 当前只查询一张表，直接返回结果即可
-        tuple_sets.front().print(ss,0);
+        tuple_sets.front().print(ss, 0);
     }
 
     for (SelectExeNode *&tmp_node : select_nodes) {
