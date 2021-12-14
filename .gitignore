@@ -1,5 +1,2 @@
-/*
-!.gitignore
-!.gitmodules
-!src/obclient
-!src/observer
+build/
+.vscode/
