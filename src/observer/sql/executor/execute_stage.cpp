@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 
 #include <sstream>
 #include <string>
+#include <set>
 
 #include "execute_stage.h"
 
@@ -231,7 +232,7 @@ RC ExecuteStage::check_groupby(const Selects &selects, Table **tables) {
     return RC::SUCCESS;
 }
 RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema &schema_result) {
-    for (int i = 0; i < selects.attr_num; i++) {
+    for (int i = selects.attr_num - 1; i >= 0; i--) {
         const RelAttr &attr = selects.attributes[i];
         if (attr.relation_name != nullptr) {
             int flag = 0;
@@ -259,7 +260,7 @@ RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema 
                 return RC::MISMATCH;
             }
         } else if (attr.aggregation_type == None && strcmp("*", attr.attribute_name) == 0) {
-            for (int j = 0; j < selects.relation_num; j++) {
+            for (int j = selects.relation_num - 1; j >= 0; j--) {
                 TupleSchema tmp;
                 TupleSchema::from_table(tables[j], tmp);
                 schema_result.append(tmp);
@@ -378,6 +379,16 @@ RC ExecuteStage::init_select(const char *db, const Selects &selects, Table **tab
         }
     }
 }
+std::pair<bool,std::string> is_single_query(const Selects &selects) {
+    
+    std::set<std::string> table_names;
+    for (size_t i = 0; i < selects.relation_num; i++) {
+        const char *table_name = selects.relations[i];
+        if(table_name!=nullptr) table_names.insert(std::string(table_name));
+    }
+    if(table_names.size()==1) return std::make_pair(true,(*table_names.begin()));
+    return std::make_pair(false,std::string());
+}
 // 这里没有对输入的某些信息做合法性校验，比如查询的列名、where条件中的列名等，没有做必要的合法性校验
 // 需要补充上这一部分. 校验部分也可以放在resolve，不过跟execution放一起也没有关系
 RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_event) {
@@ -385,7 +396,20 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     RC rc = RC::SUCCESS;
     Session *session = session_event->get_client()->session;
     Trx *trx = session->current_trx();
-    const Selects &selects = sql->sstr.selection;
+    Selects &selects = sql->sstr.selection;
+
+    std::pair<bool,std::string> single_query=is_single_query(selects);
+    if(single_query.first) {
+        for(int i=0;i<selects.groupby_num;i++) {
+            auto &attr=selects.groupby_attrs[i];
+            if(!attr.is_const&&attr.relation_name==nullptr) strcpy(attr.relation_name,single_query.second.c_str());
+        }
+        for(int i=0;i<selects.orderby_num;i++) {
+            auto &attr=selects.orderby_attrs[i].attr;
+            if(!attr.is_const&&attr.relation_name==nullptr) strcpy(attr.relation_name,single_query.second.c_str());
+        }
+    }
+    
     Table *tables[selects.relation_num];
     TupleSchema schema_result;
     rc = init_select(db, selects, tables, schema_result);
@@ -467,8 +491,8 @@ static RC schema_add_field(Table *table, const char *field_name, AggregationFunc
 }
 
 // 把所有的表和只跟这张表关联的condition都拿出来，生成最底层的select 执行节点
-RC create_selection_executor(Trx *trx, const Selects &selects, const char *db,
-                             const char *table_name, SelectExeNode &select_node) {
+RC create_selection_executor(Trx *trx, Selects &selects, const char *db, const char *table_name,
+                             SelectExeNode &select_node) {
     // 列出跟这张表关联的Attr
     TupleSchema schema;
     Table *table = DefaultHandler::get_default().find_table(db, table_name);
@@ -476,18 +500,34 @@ RC create_selection_executor(Trx *trx, const Selects &selects, const char *db,
         LOG_WARN("No such table [%s] in db [%s]", table_name, db);
         return RC::SCHEMA_TABLE_NOT_EXIST;
     }
-
+    bool is_aggregation = false;
+    for (int i = selects.attr_num - 1; i >= 0; i--) {
+        const RelAttr &attr = selects.attributes[i];
+        if (attr.aggregation_type != None) is_aggregation = true;
+    }
     for (int i = selects.attr_num - 1; i >= 0; i--) {
         const RelAttr &attr = selects.attributes[i];
         if (nullptr == attr.relation_name || 0 == strcmp(table_name, attr.relation_name)) {
             if (0 == strcmp("*", attr.attribute_name)) {
-                // 列出这张表所有字段
-                TupleSchema::from_table(table, schema);
-                break;  // 没有校验，给出* 之后，再写字段的错误
+                if (attr.aggregation_type != None) {
+                    if (attr.aggregation_type != AggregationFunc::Count) {
+                        LOG_WARN("Can't use * in this Aggregation");
+                        return RC::MISMATCH;
+                    }
+                    schema.add(INTS, table->name(), attr.attribute_name, attr.aggregation_type);
+                    continue;
+                } else {
+                    TupleSchema::from_table(table, schema);
+                }
+                break;
+            } else if (attr.aggregation_type != None && attr.is_const) {  // count(1)
+                if (attr.aggregation_type != AggregationFunc::Count) {
+                    return RC::MISMATCH;
+                }
+                schema.add(INTS, table->name(), attr.attribute_name, attr.aggregation_type);
             } else {
-                // 列出这张表相关字段
-                RC rc = schema_add_field(table, attr.attribute_name, schema);
-                if (rc != RC::SUCCESS) {
+                RC rc = schema_add_field(table, attr.attribute_name, attr.aggregation_type, schema);
+                if (match_table(selects, attr.relation_name, table_name) && rc != RC::SUCCESS) {
                     return rc;
                 }
             }
@@ -520,8 +560,29 @@ RC create_selection_executor(Trx *trx, const Selects &selects, const char *db,
                 return rc;
             }
             condition_filters.push_back(condition_filter);
+        } else if (condition.left_is_attr == 1 && condition.right_is_attr == 1 &&
+                   condition.left_attr.relation_name != nullptr &&
+                   condition.right_attr.relation_name != nullptr &&
+                   condition.left_attr.relation_name != condition.right_attr.relation_name) {
+            // 多表查询
+            schema_add_field(table, condition.left_attr.attribute_name,
+                             condition.left_attr.aggregation_type, schema);
+            schema_add_field(table, condition.right_attr.attribute_name,
+                             condition.right_attr.aggregation_type, schema);
         }
     }
-
+    // orderby
+    for (int i = selects.orderby_num - 1; i >= 0; i--) {
+        OrderBy &order_by = selects.orderby_attrs[i];
+        RelAttr &attr = order_by.attr;
+        if (attr.relation_name == nullptr) {
+            attr.relation_name = strdup(table->name());
+        }
+        schema_add_field(table, attr.attribute_name, AggregationFunc::None, schema);
+    }
+    if (selects.groupby_num > 0) {
+        schema.clear();
+        TupleSchema::from_table(table, schema);
+    }
     return select_node.init(trx, table, std::move(schema), std::move(condition_filters));
 }
