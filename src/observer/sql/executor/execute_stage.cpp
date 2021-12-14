@@ -430,13 +430,15 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     if (single_query.first) {
         for (int i = 0; i < (int)selects.groupby_num; i++) {
             auto &attr = selects.groupby_attrs[i];
-            if (!attr.is_const && attr.relation_name == nullptr)
-                strcpy(attr.relation_name, single_query.second.c_str());
+            if (!attr.is_const && attr.relation_name == nullptr) {
+                attr.relation_name = strdup(single_query.second.c_str());
+            }
         }
         for (int i = 0; i < (int)selects.orderby_num; i++) {
             auto &attr = selects.orderby_attrs[i].attr;
-            if (!attr.is_const && attr.relation_name == nullptr)
-                strcpy(attr.relation_name, single_query.second.c_str());
+            if (!attr.is_const && attr.relation_name == nullptr) {
+                attr.relation_name = strdup(single_query.second.c_str());
+            }
         }
     }
 
@@ -444,7 +446,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     TupleSchema schema_result;
     rc = init_select(db, selects, tables, schema_result);
 
-    // 把所有的表和只跟这张表关联的condition都拿出来，生成最底层的 select 执行节点
+    // 把所有的表和只跟这张表关联的 condition 都拿出来，生成最底层的 select 执行节点
     std::vector<SelectExeNode *> select_nodes;
     for (size_t i = 0; i < selects.relation_num; i++) {
         const char *table_name = selects.relations[i];
@@ -482,7 +484,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         }
     }
 
-    std::stringstream ss;
+    TupleSet output_result;
     if (tuple_sets.size() > 1) {
         // 本次查询了多张表，需要做join操作
         std::vector<Condition> remain_conditions;
@@ -493,23 +495,28 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
                 remain_conditions.push_back(condition);
             }
         }
-        TupleSet output_result(schema_result);
         RC rc = do_cartesian(tuple_sets, remain_conditions, output_result);
-        // RC rc = RC::SUCCESS;
         if (rc != RC::SUCCESS && rc != RC::MISMATCH) {
             return rc;
         }
 
         output_result.set_schema(schema_result);
-        output_result.print(ss, 1);
     } else {
         // 当前只查询一张表，直接返回结果即可
-        tuple_sets.front().print(ss, 0);
+        output_result = std::move(tuple_sets.front());
+    }
+
+    if(selects.orderby_num != 0) {
+        output_result.sort(selects.orderby_num, selects.orderby_attrs);
     }
 
     for (SelectExeNode *&tmp_node : select_nodes) {
         delete tmp_node;
     }
+
+    std::stringstream ss;
+    output_result.print(ss, tuple_sets.size() > 1);
+
     session_event->set_response(ss.str());
     end_trx_if_need(session, trx, true);
     return rc;
