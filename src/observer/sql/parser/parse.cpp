@@ -123,6 +123,16 @@ void attr_info_destroy(AttrInfo *attr_info) {
     attr_info->name = nullptr;
 }
 
+void order_attr_init(OrderBy *order_attr, RelAttr *attr, OrderType type) {
+	order_attr->attr = *attr;
+	order_attr->type = type;
+}
+
+void order_attr_destroy(OrderBy *order_attr) {
+	relation_attr_destroy(&order_attr->attr);
+	order_attr->type = AscOrder;
+}
+
 void selects_init(Selects *selects, ...);
 void selects_append_attribute(Selects *selects, RelAttr *rel_attr) {
     selects->attributes[selects->attr_num++] = *rel_attr;
@@ -163,7 +173,18 @@ void selects_destroy(Selects *selects) {
         condition_destroy(&selects->conditions[i]);
     }
     selects->condition_num = 0;
+
+    for (size_t i = 0; i < selects->orderby_num; i++) 
+	    order_attr_destroy(&selects->orderby_attrs[i]);
+
+	selects->orderby_num = 0;
+
+	for (size_t i = 0; i < selects->group_by_num; i++)
+	    relation_attr_destroy(&selects->groupby_attrs[i]);
+
+	selects->groupby_num = 0;
 }
+
 
 void inserts_init(Inserts *inserts, const char *relation_name, Value values[], size_t value_num) {
     assert(value_num <= sizeof(inserts->values)/sizeof(inserts->values[0]));
