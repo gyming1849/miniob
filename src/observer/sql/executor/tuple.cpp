@@ -98,7 +98,7 @@ int TupleSchema::index_of_field(const char *table_name, const char *field_name,
     return -1;
 }
 
-void TupleSchema::print(std::ostream &os) const {
+void TupleSchema::print(std::ostream &os,bool multi) const {
     if (fields_.empty()) {
         os << "No schema";
         return;
@@ -118,7 +118,7 @@ void TupleSchema::print(std::ostream &os) const {
         os << iter->field_name() << " | ";
     }
 
-    if (table_names.size() > 1) {
+    if (multi) {
         os << fields_.back().table_name() << ".";
     }
     os << fields_.back().field_name() << std::endl;
@@ -167,23 +167,24 @@ void TupleSet::clear() {
     schema_.clear();
 }
 
-void TupleSet::print(std::ostream &os) const {
+void TupleSet::print(std::ostream &os, bool multi) const {
     if (schema_.fields().empty()) {
         LOG_WARN("Got empty schema");
         return;
     }
 
-    schema_.print(os);
+    schema_.print(os,multi);
 
     for (const Tuple &item : tuples_) {
         const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
-        for (std::vector<std::shared_ptr<TupleValue>>::const_iterator iter = values.begin(),
-                                                                      end = --values.end();
-             iter != end; ++iter) {
-            (*iter)->to_string(os);
+
+        auto size = schema_.fields().size();
+        for (int i = 0; i < size - 1; i++) {
+            const auto &value = values[i];
+            value->to_string(os);
             os << " | ";
         }
-        values.back()->to_string(os);
+        values[size - 1]->to_string(os);
         os << std::endl;
     }
 }

@@ -66,7 +66,6 @@ public:
         }
         return 0;
     }
-
 private:
     float value_;
 };
@@ -82,7 +81,6 @@ public:
         const StringValue &string_other = (const StringValue &)other;
         return strcmp(value_.c_str(), string_other.value_.c_str());
     }
-
 private:
     std::string value_;
 };
