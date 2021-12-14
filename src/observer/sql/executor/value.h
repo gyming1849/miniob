@@ -14,10 +14,11 @@ See the Mulan PSL v2 for more details. */
 #ifndef __OBSERVER_SQL_EXECUTOR_VALUE_H_
 #define __OBSERVER_SQL_EXECUTOR_VALUE_H_
 
-#include <string.h>
+#include "sql/parser/parse_defs.h"
 
 #include <ostream>
 #include <string>
+#include <string.h>
 
 class TupleValue {
 public:
@@ -34,7 +35,6 @@ public:
     }
     int get_count() const { return count; }
     int get_avg() const { return avg_; }
-  }
 
 protected:
     AggregationFunc aggregation_type_ = None;
