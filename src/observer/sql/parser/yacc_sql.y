@@ -68,7 +68,6 @@ ParserContext *get_context(yyscan_t scanner)
 		TABLES
 		INDEX
 		SELECT
-		DESC
 		SHOW
 		SYNC
 		INSERT
@@ -102,6 +101,17 @@ ParserContext *get_context(yyscan_t scanner)
 		LE
 		GE
 		NE
+		GROUP
+		ORDER
+		COUNT
+		AVG
+		SUM
+		MIN
+		MAX
+		ASC
+		DESC
+		BY
+		
 
 %union {
   struct _Attr *attr;
@@ -126,6 +136,8 @@ ParserContext *get_context(yyscan_t scanner)
 %type <condition1> condition;
 %type <value1> value;
 %type <number> number;
+%type <number> aggregation;
+%type <number> order_type;
 
 %%
 
