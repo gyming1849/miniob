@@ -165,7 +165,6 @@ void TupleSet::merge(Tuple &&tuple) {
     return;
 }
 
-<<<<<<< HEAD
 void TupleSet::merge(Tuple &&tuple,int group_index) {
     if (tuples_.empty() || group_index == -1) {
         tuples_.emplace_back(std::move(tuple));
@@ -182,8 +181,6 @@ void TupleSet::merge(Tuple &&tuple,int group_index) {
     return;
 }
 
-=======
->>>>>>> 4c116ba7e945c058a6ad1103a8305082d79f1516
 void TupleSet::clear() {
     tuples_.clear();
     schema_.clear();

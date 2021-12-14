@@ -18,11 +18,8 @@ See the Mulan PSL v2 for more details. */
 
 #include <ostream>
 #include <string>
-<<<<<<< HEAD
-#include <iomanip>
-=======
 #include <string.h>
->>>>>>> 4c116ba7e945c058a6ad1103a8305082d79f1516
+#include <iomanip>
 
 class TupleValue {
 public:
@@ -38,11 +35,6 @@ public:
         aggregation_type_ = aggregation; 
     }
     int get_count() const { return count; }
-<<<<<<< HEAD
-    // int get_avg() const { return avg_; }
-=======
-    int get_avg() const { return avg_; }
->>>>>>> 4c116ba7e945c058a6ad1103a8305082d79f1516
 
 protected:
     AggregationFunc aggregation_type_ = None;

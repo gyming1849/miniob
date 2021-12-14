@@ -409,10 +409,6 @@ std::pair<bool, std::string> is_single_query(const Selects &selects) {
     return std::make_pair(false, std::string());
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 4c116ba7e945c058a6ad1103a8305082d79f1516
 void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples, const TupleSchema group_by_schema) {
   const TupleSchema &schema = all_tuples.schema();
   const auto &output_schema = output_tuples.schema();
@@ -459,11 +455,6 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples, const Tuple
   }
 }
 
-<<<<<<< HEAD
-
-// 这里没有对输入的某些信息做合法性校验，比如查询的列名、where条件中的列名等，没有做必要的合法性校验
-// 需要补充上这一部分. 校验部分也可以放在resolve，不过跟execution放一起也没有关系
-=======
 /**
  * @brief Execute a query. 
  * 这里没有对输入的某些信息做合法性校验，比如查询的列名、where条件中的列名等，没有做必要的合法性校验
@@ -474,7 +465,6 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples, const Tuple
  * @param session_event 
  * @return RC 
  */
->>>>>>> 4c116ba7e945c058a6ad1103a8305082d79f1516
 RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_event) {
     // puts("Enter");
     RC rc = RC::SUCCESS;

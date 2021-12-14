@@ -118,17 +118,11 @@ public:
 
     void clear();
     void merge(Tuple &&tuple);
-
-<<<<<<< HEAD
-  void clear();
-  void merge(Tuple &&tuple);
-  void merge(Tuple &&tuple,int group_index);
-=======
+    void merge(Tuple &&tuple,int group_index);
     bool is_empty() const;
     int size() const;
     const Tuple &get(int index) const;
     const std::vector<Tuple> &tuples() const;
->>>>>>> 4c116ba7e945c058a6ad1103a8305082d79f1516
 
     void sort(size_t size, OrderBy *attrs);
 
