@@ -409,6 +409,57 @@ std::pair<bool, std::string> is_single_query(const Selects &selects) {
     return std::make_pair(false, std::string());
 }
 
+<<<<<<< HEAD
+void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples, const TupleSchema group_by_schema) {
+  const TupleSchema &schema = all_tuples.schema();
+  const auto &output_schema = output_tuples.schema();
+  const auto &output_fields = output_schema.fields();
+  int output_size = output_fields.size();
+  for (auto &all_tuple : all_tuples.tuples()) {
+    Tuple output_tuple;
+    for (int i = 0; i < output_size; i++) {
+      const auto &field = output_fields[i];
+      int val_idx = schema.index_of_field(field.table_name(), field.field_name(), None);
+      TupleValue *temp_val = all_tuple.get(val_idx).clone();
+      temp_val->set_aggregation_type(field.aggregation_type());
+      output_tuple.add(temp_val);
+    }
+    int group_index = -1;
+    for (int i = 0; i < after.size(); i++) {
+      bool equal = true;
+      const auto &group_by_fields = group_by_schema.fields();
+      for (const auto& field : group_by_fields) {
+        int field_index = -1;
+
+        for (int j = output_size - 1; j >= 0; j--) {
+          if (0 == strcmp(field.table_name(), output_schema.fields().at(j).table_name()) &&
+              0 == strcmp(field.field_name(), output_schema.fields().at(j).field_name())) {
+            field_index = j;
+            break;
+          }
+        }
+
+        const auto& in_output = after.get(i).get(field_index);
+        const auto& not_in_output = output_tuple.get(field_index);
+
+        if (in_output.compare(not_in_output)!=0) {
+          equal = false;
+          break;
+        }
+      }
+      if (equal) {
+        group_index = i;
+        break;
+      }
+    }
+    after.merge(std::move(output_tuple), group_index);
+  }
+}
+
+
+// 这里没有对输入的某些信息做合法性校验，比如查询的列名、where条件中的列名等，没有做必要的合法性校验
+// 需要补充上这一部分. 校验部分也可以放在resolve，不过跟execution放一起也没有关系
+=======
 /**
  * @brief Execute a query. 
  * 这里没有对输入的某些信息做合法性校验，比如查询的列名、where条件中的列名等，没有做必要的合法性校验
@@ -419,6 +470,7 @@ std::pair<bool, std::string> is_single_query(const Selects &selects) {
  * @param session_event 
  * @return RC 
  */
+>>>>>>> a6fec5263dc3fb116a960e4595c29f48f7dea133
 RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_event) {
 
     RC rc = RC::SUCCESS;
