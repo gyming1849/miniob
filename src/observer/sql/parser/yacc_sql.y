@@ -28,7 +28,7 @@ char *substr(const char *s,int n1,int n2)/*从s中提取下标为n1~n2的字符�
   char *sp = malloc(sizeof(char) * (n2 - n1 + 2));
   int i, j = 0;
   for (i = n1; i <= n2; i++) {
-    sp[j++] = s[i];
+	sp[j++] = s[i];
   }
   sp[j] = 0;
   return sp;
@@ -62,46 +62,46 @@ ParserContext *get_context(yyscan_t scanner)
 
 //标识tokens
 %token  SEMICOLON
-        CREATE
-        DROP
-        TABLE
-        TABLES
-        INDEX
-        SELECT
-        DESC
-        SHOW
-        SYNC
-        INSERT
-        DELETE
-        UPDATE
-        LBRACE
-        RBRACE
-        COMMA
-        TRX_BEGIN
-        TRX_COMMIT
-        TRX_ROLLBACK
-        INT_T
-        STRING_T
-        FLOAT_T
-        HELP
-        EXIT
-        DOT //QUOTE
-        INTO
-        VALUES
-        FROM
-        WHERE
-        AND
-        SET
-        ON
-        LOAD
-        DATA
-        INFILE
-        EQ
-        LT
-        GT
-        LE
-        GE
-        NE
+		CREATE
+		DROP
+		TABLE
+		TABLES
+		INDEX
+		SELECT
+		DESC
+		SHOW
+		SYNC
+		INSERT
+		DELETE
+		UPDATE
+		LBRACE
+		RBRACE
+		COMMA
+		TRX_BEGIN
+		TRX_COMMIT
+		TRX_ROLLBACK
+		INT_T
+		STRING_T
+		FLOAT_T
+		HELP
+		EXIT
+		DOT //QUOTE
+		INTO
+		VALUES
+		FROM
+		WHERE
+		AND
+		SET
+		ON
+		LOAD
+		DATA
+		INFILE
+		EQ
+		LT
+		GT
+		LE
+		GE
+		NE
 
 %union {
   struct _Attr *attr;
@@ -130,9 +130,9 @@ ParserContext *get_context(yyscan_t scanner)
 %%
 
 commands:		//commands or sqls. parser starts here.
-    /* empty */
-    | commands command
-    ;
+	/* empty */
+	| commands command
+	;
 
 command:
 	  select  
@@ -152,78 +152,78 @@ command:
 	| load_data
 	| help
 	| exit
-    ;
+	;
 
 exit:			
-    EXIT SEMICOLON {
-        CONTEXT->ssql->flag=SCF_EXIT;//"exit";
-    };
+	EXIT SEMICOLON {
+		CONTEXT->ssql->flag=SCF_EXIT;//"exit";
+	};
 
 help:
-    HELP SEMICOLON {
-        CONTEXT->ssql->flag=SCF_HELP;//"help";
-    };
+	HELP SEMICOLON {
+		CONTEXT->ssql->flag=SCF_HELP;//"help";
+	};
 
 sync:
-    SYNC SEMICOLON {
-      CONTEXT->ssql->flag = SCF_SYNC;
-    }
-    ;
+	SYNC SEMICOLON {
+	  CONTEXT->ssql->flag = SCF_SYNC;
+	}
+	;
 
 begin:
-    TRX_BEGIN SEMICOLON {
-      CONTEXT->ssql->flag = SCF_BEGIN;
-    }
-    ;
+	TRX_BEGIN SEMICOLON {
+	  CONTEXT->ssql->flag = SCF_BEGIN;
+	}
+	;
 
 commit:
-    TRX_COMMIT SEMICOLON {
-      CONTEXT->ssql->flag = SCF_COMMIT;
-    }
-    ;
+	TRX_COMMIT SEMICOLON {
+	  CONTEXT->ssql->flag = SCF_COMMIT;
+	}
+	;
 
 rollback:
-    TRX_ROLLBACK SEMICOLON {
-      CONTEXT->ssql->flag = SCF_ROLLBACK;
-    }
-    ;
+	TRX_ROLLBACK SEMICOLON {
+	  CONTEXT->ssql->flag = SCF_ROLLBACK;
+	}
+	;
 
 drop_table:		/*drop table 语句的语法解析树*/
-    DROP TABLE ID SEMICOLON {
-        CONTEXT->ssql->flag = SCF_DROP_TABLE;//"drop_table";
-        drop_table_init(&CONTEXT->ssql->sstr.drop_table, $3);
-    };
+	DROP TABLE ID SEMICOLON {
+		CONTEXT->ssql->flag = SCF_DROP_TABLE;//"drop_table";
+		drop_table_init(&CONTEXT->ssql->sstr.drop_table, $3);
+	};
 
 show_tables:
-    SHOW TABLES SEMICOLON {
-      CONTEXT->ssql->flag = SCF_SHOW_TABLES;
-    }
-    ;
+	SHOW TABLES SEMICOLON {
+	  CONTEXT->ssql->flag = SCF_SHOW_TABLES;
+	}
+	;
 
 desc_table:
-    DESC ID SEMICOLON {
-      CONTEXT->ssql->flag = SCF_DESC_TABLE;
-      desc_table_init(&CONTEXT->ssql->sstr.desc_table, $2);
-    }
-    ;
+	DESC ID SEMICOLON {
+	  CONTEXT->ssql->flag = SCF_DESC_TABLE;
+	  desc_table_init(&CONTEXT->ssql->sstr.desc_table, $2);
+	}
+	;
 
 create_index:		/*create index 语句的语法解析树*/
-    CREATE INDEX ID ON ID LBRACE ID RBRACE SEMICOLON 
+	CREATE INDEX ID ON ID LBRACE ID RBRACE SEMICOLON 
 		{
 			CONTEXT->ssql->flag = SCF_CREATE_INDEX;//"create_index";
 			create_index_init(&CONTEXT->ssql->sstr.create_index, $3, $5, $7);
 		}
-    ;
+	;
 
 drop_index:			/*drop index 语句的语法解析树*/
-    DROP INDEX ID  SEMICOLON 
+	DROP INDEX ID  SEMICOLON 
 		{
 			CONTEXT->ssql->flag=SCF_DROP_INDEX;//"drop_index";
 			drop_index_init(&CONTEXT->ssql->sstr.drop_index, $3);
 		}
-    ;
+	;
 create_table:		/*create table 语句的语法解析树*/
-    CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE SEMICOLON 
+	CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE SEMICOLON 
 		{
 			CONTEXT->ssql->flag=SCF_CREATE_TABLE;//"create_table";
 			// CONTEXT->ssql->sstr.create_table.attribute_count = CONTEXT->value_length;
@@ -231,14 +231,14 @@ create_table:		/*create table 语句的语法解析树*/
 			//临时变量清零	
 			CONTEXT->value_length = 0;
 		}
-    ;
+	;
 attr_def_list:
-    /* empty */
-    | COMMA attr_def attr_def_list {    }
-    ;
-    
+	/* empty */
+	| COMMA attr_def attr_def_list {    }
+	;
+	
 attr_def:
-    ID_get type LBRACE number RBRACE 
+	ID_get type LBRACE number RBRACE 
 		{
 			AttrInfo attribute;
 			attr_info_init(&attribute, CONTEXT->id, $2, $4);
@@ -249,7 +249,7 @@ attr_def:
 			// CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].length = $4;
 			CONTEXT->value_length++;
 		}
-    |ID_get type
+	|ID_get type
 		{
 			AttrInfo attribute;
 			attr_info_init(&attribute, CONTEXT->id, $2, 4);
@@ -260,15 +260,15 @@ attr_def:
 			// CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].length=4; // default attribute length
 			CONTEXT->value_length++;
 		}
-    ;
+	;
 number:
 		NUMBER {$$ = $1;}
 		;
 type:
 	INT_T { $$=INTS; }
-       | STRING_T { $$=CHARS; }
-       | FLOAT_T { $$=FLOATS; }
-       ;
+	   | STRING_T { $$=CHARS; }
+	   | FLOAT_T { $$=FLOATS; }
+	   ;
 ID_get:
 	ID 
 	{
@@ -279,7 +279,7 @@ ID_get:
 
 	
 insert:				/*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES LBRACE value value_list RBRACE SEMICOLON 
+	INSERT INTO ID VALUES LBRACE value value_list RBRACE SEMICOLON 
 		{
 			// CONTEXT->values[CONTEXT->value_length++] = *$6;
 
@@ -288,44 +288,44 @@ insert:				/*insert   语句的语法解析树*/
 			// CONTEXT->ssql->sstr.insertion.value_num = CONTEXT->value_length;
 			// for(i = 0; i < CONTEXT->value_length; i++){
 			// 	CONTEXT->ssql->sstr.insertion.values[i] = CONTEXT->values[i];
-      // }
+	  // }
 			inserts_init(&CONTEXT->ssql->sstr.insertion, $3, CONTEXT->values, CONTEXT->value_length);
 
-      //临时变量清零
-      CONTEXT->value_length=0;
-    }
+	  //临时变量清零
+	  CONTEXT->value_length=0;
+	}
 
 value_list:
-    /* empty */
-    | COMMA value value_list  { 
+	/* empty */
+	| COMMA value value_list  { 
   		// CONTEXT->values[CONTEXT->value_length++] = *$2;
 	  }
-    ;
+	;
 value:
-    NUMBER{	
+	NUMBER{	
   		value_init_integer(&CONTEXT->values[CONTEXT->value_length++], $1);
 		}
-    |FLOAT{
+	|FLOAT{
   		value_init_float(&CONTEXT->values[CONTEXT->value_length++], $1);
 		}
-    |SSS {
+	|SSS {
 			$1 = substr($1,1,strlen($1)-2);
   		value_init_string(&CONTEXT->values[CONTEXT->value_length++], $1);
 		}
-    ;
-    
+	;
+	
 delete:		/*  delete 语句的语法解析树*/
-    DELETE FROM ID where SEMICOLON 
+	DELETE FROM ID where SEMICOLON 
 		{
 			CONTEXT->ssql->flag = SCF_DELETE;//"delete";
 			deletes_init_relation(&CONTEXT->ssql->sstr.deletion, $3);
 			deletes_set_conditions(&CONTEXT->ssql->sstr.deletion, 
 					CONTEXT->conditions, CONTEXT->condition_length);
 			CONTEXT->condition_length = 0;	
-    }
-    ;
+	}
+	;
 update:			/*  update 语句的语法解析树*/
-    UPDATE ID SET ID EQ value where SEMICOLON
+	UPDATE ID SET ID EQ value where SEMICOLON
 		{
 			CONTEXT->ssql->flag = SCF_UPDATE;//"update";
 			Value *value = &CONTEXT->values[0];
@@ -333,9 +333,9 @@ update:			/*  update 语句的语法解析树*/
 					CONTEXT->conditions, CONTEXT->condition_length);
 			CONTEXT->condition_length = 0;
 		}
-    ;
+	;
 select:				/*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list where SEMICOLON
+	SELECT select_attr FROM ID rel_list where SEMICOLON
 		{
 			// CONTEXT->ssql->sstr.selection.relations[CONTEXT->from_length++]=$4;
 			selects_append_relation(&CONTEXT->ssql->sstr.selection, $4);
@@ -354,12 +354,12 @@ select:				/*  select 语句的语法解析树*/
 	;
 
 select_attr:
-    STAR {  
+	STAR {  
 			RelAttr attr;
 			relation_attr_init(&attr, NULL, "*");
 			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
 		}
-    | ID attr_list {
+	| ID attr_list {
 			RelAttr attr;
 			relation_attr_init(&attr, NULL, $1);
 			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
@@ -369,45 +369,45 @@ select_attr:
 			relation_attr_init(&attr, $1, $3);
 			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
 		}
-    ;
+	;
 attr_list:
-    /* empty */
-    | COMMA ID attr_list {
+	/* empty */
+	| COMMA ID attr_list {
 			RelAttr attr;
 			relation_attr_init(&attr, NULL, $2);
 			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-     	  // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length].relation_name = NULL;
-        // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length++].attribute_name=$2;
-      }
-    | COMMA ID DOT ID attr_list {
+	 	  // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length].relation_name = NULL;
+		// CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length++].attribute_name=$2;
+	  }
+	| COMMA ID DOT ID attr_list {
 			RelAttr attr;
 			relation_attr_init(&attr, $2, $4);
 			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-        // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length].attribute_name=$4;
-        // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length++].relation_name=$2;
+		// CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length].attribute_name=$4;
+		// CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length++].relation_name=$2;
   	  }
   	;
 
 rel_list:
-    /* empty */
-    | COMMA ID rel_list {	
+	/* empty */
+	| COMMA ID rel_list {	
 				selects_append_relation(&CONTEXT->ssql->sstr.selection, $2);
 		  }
-    ;
+	;
 where:
-    /* empty */ 
-    | WHERE condition condition_list {	
+	/* empty */ 
+	| WHERE condition condition_list {	
 				// CONTEXT->conditions[CONTEXT->condition_length++]=*$2;
 			}
-    ;
+	;
 condition_list:
-    /* empty */
-    | AND condition condition_list {
+	/* empty */
+	| AND condition condition_list {
 				// CONTEXT->conditions[CONTEXT->condition_length++]=*$2;
 			}
-    ;
+	;
 condition:
-    ID comOp value 
+	ID comOp value 
 		{
 			RelAttr left_attr;
 			relation_attr_init(&left_attr, NULL, $1);
@@ -468,7 +468,7 @@ condition:
 			// $$->right_attr.attribute_name=$3;
 
 		}
-    |value comOp ID
+	|value comOp ID
 		{
 			Value *left_value = &CONTEXT->values[CONTEXT->value_length - 1];
 			RelAttr right_attr;
@@ -490,7 +490,7 @@ condition:
 			// $$->right_attr.attribute_name=$3;
 		
 		}
-    |ID DOT ID comOp value
+	|ID DOT ID comOp value
 		{
 			RelAttr left_attr;
 			relation_attr_init(&left_attr, $1, $3);
@@ -510,8 +510,8 @@ condition:
 			// $$->right_attr.attribute_name=NULL;
 			// $$->right_value =*$5;			
 							
-    }
-    |value comOp ID DOT ID
+	}
+	|value comOp ID DOT ID
 		{
 			Value *left_value = &CONTEXT->values[CONTEXT->value_length - 1];
 
@@ -531,8 +531,8 @@ condition:
 			// $$->right_attr.relation_name = $3;
 			// $$->right_attr.attribute_name = $5;
 									
-    }
-    |ID DOT ID comOp ID DOT ID
+	}
+	|ID DOT ID comOp ID DOT ID
 		{
 			RelAttr left_attr;
 			relation_attr_init(&left_attr, $1, $3);
@@ -550,17 +550,26 @@ condition:
 			// $$->right_is_attr = 1;		//属性
 			// $$->right_attr.relation_name=$5;
 			// $$->right_attr.attribute_name=$7;
-    }
-    ;
+	}
+	;
 
 comOp:
   	  EQ { CONTEXT->comp = EQUAL_TO; }
-    | LT { CONTEXT->comp = LESS_THAN; }
-    | GT { CONTEXT->comp = GREAT_THAN; }
-    | LE { CONTEXT->comp = LESS_EQUAL; }
-    | GE { CONTEXT->comp = GREAT_EQUAL; }
-    | NE { CONTEXT->comp = NOT_EQUAL; }
+	| LT { CONTEXT->comp = LESS_THAN; }
+	| GT { CONTEXT->comp = GREAT_THAN; }
+	| LE { CONTEXT->comp = LESS_EQUAL; }
+	| GE { CONTEXT->comp = GREAT_EQUAL; }
+	| NE { CONTEXT->comp = NOT_EQUAL; }
+	;
+
+aggregation:
+    COUNT { $$ = Count; }
+    | SUM { $$ = Sum; }
+    | AVG { $$ = Avg; }
+    | MAX { $$ = Max; }
+    | MIN { $$ = Min; }
     ;
+
 
 load_data:
 		LOAD DATA INFILE SSS INTO TABLE ID SEMICOLON

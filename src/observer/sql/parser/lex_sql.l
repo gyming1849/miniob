@@ -62,6 +62,9 @@ QUOTE            [\'\"]
 [Dd][Ee][Ll][Ee][Tt][Ee]                 RETURN_TOKEN(DELETE);
 [Uu][Pp][Dd][Aa][Tt][Ee]                 RETURN_TOKEN(UPDATE);
 [Ss][Ee][Tt]							               RETURN_TOKEN(SET);
+[Oo][Rr][Dd][Ee][Rr]					 RETURN_TOKEN(ORDER);
+[Gg][Rr][Oo][Uu][Pp]					 RETURN_TOKEN(GROUP);
+[Bb][Yy]								 RETURN_TOKEN(BY);
 [Bb][Ee][Gg][Ii][Nn]                     RETURN_TOKEN(TRX_BEGIN);
 [Cc][Oo][Mm][Mm][Ii][Tt]                 RETURN_TOKEN(TRX_COMMIT);
 [Rr][Oo][Ll][Ll][Bb][Aa][Cc][Kk]         RETURN_TOKEN(TRX_ROLLBACK);
@@ -71,6 +74,12 @@ QUOTE            [\'\"]
 [Ll][Oo][Aa][Dd]			                   RETURN_TOKEN(LOAD);
 [Dd][Aa][Tt][Aa]	                       RETURN_TOKEN(DATA);
 [Ii][Nn][Ff][Ii][Ll][Ee]                 RETURN_TOKEN(INFILE);
+[Ss][Uu][Mm]							 RETURN_TOKEN(SUM);
+[Cc][Oo][Uu][Nn][Tt]							 RETURN_TOKEN(COUNT);
+[Aa][Vv][Gg]							 RETURN_TOKEN(AVG);
+[Mm][Ii][Nn]							 RETURN_TOKEN(MIN);
+[Mm][Aa][Xx]							 RETURN_TOKEN(MAX);
+
 {ID}							                       yylval->string=strdup(yytext); RETURN_TOKEN(ID);
 "("								                       RETURN_TOKEN(LBRACE);
 ")"								                       RETURN_TOKEN(RBRACE);
