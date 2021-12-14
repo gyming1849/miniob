@@ -254,19 +254,17 @@ RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema 
                 if (strcmp(attr.relation_name, selects.relations[j]) == 0) {
                     flag = 1;
                     if (strcmp("*", attr.attribute_name) == 0) {
-                        static TupleSchema tmp;
+                        TupleSchema tmp;
                         TupleSchema::from_table(tables[j], tmp);
                         schema_result.append(tmp);
                         ;
-                    }
-                    if (strcmp("*", attr.attribute_name) != 0 &&
-                        tables[j]->table_meta().field(attr.attribute_name) == nullptr) {
+                    } else if (tables[j]->table_meta().field(attr.attribute_name) == nullptr) {
                         LOG_WARN("No such field [%s] in table [%s]", attr.attribute_name,
                                  attr.relation_name);
                         return RC::SCHEMA_FIELD_NOT_EXIST;
-                    }
-                    schema_add_field(tables[j], attr.attribute_name, attr.aggregation_type,
-                                     schema_result);
+                    } else
+                        schema_add_field(tables[j], attr.attribute_name, attr.aggregation_type,
+                                         schema_result);
                 }
             }
             if (flag == 0) {

@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "record_manager.h"
 #include "common/log/log.h"
 #include "storage/common/table.h"
+#include <math.h>
 
 using namespace common;
 
