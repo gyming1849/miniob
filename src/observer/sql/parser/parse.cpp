@@ -49,7 +49,7 @@ void relation_attr_init_with_aggregation(RelAttr *relation_attr, const char *rel
 void relation_attr_init_with_aggregation_const(RelAttr *relation_attr, int value, AggregationFunc aggregation_type) {
     relation_attr->relation_name = nullptr;
     char attribute_name[MAX_NUM];
-    snprintf(attribute_name, MAX_NUM, "%d", number);
+    snprintf(attribute_name, MAX_NUM, "%d", value);
     relation_attr->attribute_name = strdup(attribute_name);
     relation_attr->aggregation_type = aggregation_type;
     relation_attr->is_const = 1;
@@ -125,12 +125,12 @@ void attr_info_destroy(AttrInfo *attr_info) {
 
 void order_attr_init(OrderBy *order_attr, RelAttr *attr, OrderType type) {
 	order_attr->attr = *attr;
-	order_attr->type = type;
+	order_attr->order_type = type;
 }
 
 void order_attr_destroy(OrderBy *order_attr) {
 	relation_attr_destroy(&order_attr->attr);
-	order_attr->type = AscOrder;
+	order_attr->order_type = Asc;
 }
 
 void selects_init(Selects *selects, ...);
@@ -179,7 +179,7 @@ void selects_destroy(Selects *selects) {
 
 	selects->orderby_num = 0;
 
-	for (size_t i = 0; i < selects->group_by_num; i++)
+	for (size_t i = 0; i < selects->groupby_num; i++)
 	    relation_attr_destroy(&selects->groupby_attrs[i]);
 
 	selects->groupby_num = 0;
