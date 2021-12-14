@@ -46,7 +46,7 @@ void relation_attr_init_with_aggregation(RelAttr *relation_attr, const char *rel
     relation_attr->is_const = 0;
 }
 
-void relation_attr_init_with_aggregation_const(RelAttr *relation_attr, int value, AggregationFunc aggregation_type) {
+void relation_attr_init_with_const_aggregation(RelAttr *relation_attr, int value, AggregationFunc aggregation_type) {
     relation_attr->relation_name = nullptr;
     char attribute_name[MAX_NUM];
     snprintf(attribute_name, MAX_NUM, "%d", value);
