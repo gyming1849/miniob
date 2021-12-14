@@ -471,7 +471,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     Session *session = session_event->get_client()->session;
     Trx *trx = session->current_trx();
     Selects &selects = sql->sstr.selection;
-    // puts("Enter");
+    puts("Enter");
     std::pair<bool, std::string> single_query = is_single_query(selects);
     if (single_query.first) {
         for (int i = 0; i < (int)selects.groupby_num; i++) {
@@ -508,7 +508,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         }
         select_nodes.push_back(select_node);
     }
-
+    // puts("Enter");
     if (select_nodes.empty()) {
         LOG_ERROR("No table given");
         end_trx_if_need(session, trx, false);
@@ -529,7 +529,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
             tuple_sets.push_back(std::move(tuple_set));
         }
     }
-
+    // puts("Enter");
     TupleSet output_result;
     if (tuple_sets.size() > 1) {
         // 本次查询了多张表，需要做join操作
@@ -547,10 +547,23 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         }
 
         output_result.set_schema(schema_result);
+        // if (selects.group_by_num > 0){
+        //     output_result.clear();
+        //     check_attr(selects, tables, output_schema);
+        //     TupleSchema temp(output_schema);
+        //     temp.append(group_by_schema);
+        //     TupleSet ouput_after_group(temp);
+        //     do_groupby(output, ouput_after_group, group_by_schema);
+        //     ouput_after_group.set_schema(output_schema);
+        //     ouput_after_group.print(ss, false);
+        // }
+
     } else {
         // 当前只查询一张表，直接返回结果即可
         output_result = std::move(tuple_sets.front());
     }
+
+    
 
     if(selects.orderby_num != 0) {
         output_result.sort(selects.orderby_num, selects.orderby_attrs);

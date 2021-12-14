@@ -1851,7 +1851,7 @@ yyreduce:
 			CONTEXT->from_length=0;
 			CONTEXT->select_length=0;
 			CONTEXT->value_length = 0;
-			puts("FUCK");
+			// puts("FUCK");
 	}
 #line 1857 "yacc_sql.tab.c"
     break;
