@@ -363,6 +363,7 @@ select:				/*  select 语句的语法解析树*/
 			CONTEXT->from_length=0;
 			CONTEXT->select_length=0;
 			CONTEXT->value_length = 0;
+			// puts("FUCK");
 	}
 	;
 
@@ -372,6 +373,7 @@ group:
 		RelAttr attr;
 		relation_attr_init(&attr, NULL, $3);
 		selects_append_groupby(&CONTEXT->ssql->sstr.selection, &attr);
+		// puts("YES");
 	}
 	
 	| GROUP BY ID DOT ID group_attr_list {

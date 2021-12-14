@@ -162,6 +162,23 @@ void TupleSet::merge(Tuple &&tuple) {
     }
     return;
 }
+
+void TupleSet::merge(Tuple &&tuple,int group_index) {
+    if (tuples_.empty() || group_index == -1) {
+        tuples_.emplace_back(std::move(tuple));
+        return;
+    }
+    const std::vector<std::shared_ptr<TupleValue>> old_values = tuples_[group_index].values();
+    int value_idx = 0;
+    for (std::shared_ptr<TupleValue> old_value : old_values) {
+        if (old_value->aggregation_type() == None) {
+            tuples_.emplace_back(std::move(tuple));
+            return;
+        }
+    }
+    return;
+}
+
 void TupleSet::clear() {
     tuples_.clear();
     schema_.clear();

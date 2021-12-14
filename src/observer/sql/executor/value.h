@@ -18,12 +18,13 @@ See the Mulan PSL v2 for more details. */
 
 #include <ostream>
 #include <string>
+#include <iomanip>
 
 class TupleValue {
 public:
     TupleValue() = default;
     virtual ~TupleValue() = default;
-
+    virtual TupleValue *clone() const = 0;
     virtual void to_string(std::ostream &os) const = 0;
     virtual int compare(const TupleValue &other) const = 0;
     AggregationFunc aggregation_type() {
@@ -33,20 +34,32 @@ public:
         aggregation_type_ = aggregation; 
     }
     int get_count() const { return count; }
-    int get_avg() const { return avg_; }
-  }
+    // int get_avg() const { return avg_; }
 
 protected:
     AggregationFunc aggregation_type_ = None;
     int count = 1;
-    double avg_ = 0;
 };
 
 class IntValue : public TupleValue {
 public:
-    explicit IntValue(int value) : value_(value) {}
+    explicit IntValue(int value) : value_(value), avg_(value){}
 
-    void to_string(std::ostream &os) const override { os << value_; }
+    IntValue *clone() const { return new IntValue(*this); }
+
+    void to_string(std::ostream &os) const override { 
+        switch (aggregation_type_) {
+            case Count:
+                os << count;
+                break;
+            case Avg:
+                os << std::fixed<< std::setprecision(2) << avg_;
+                break;
+            default:
+                os << value_; 
+                break;
+        }
+    }
 
     int compare(const TupleValue &other) const override {
         const IntValue &int_other = (const IntValue &)other;
@@ -78,18 +91,33 @@ public:
 
 private:
     int value_;
+    double avg_;
 };
 
 class FloatValue : public TupleValue {
 public:
-    explicit FloatValue(float value) : value_(value) {}
+    explicit FloatValue(float value) : value_(value), avg_(value) {}
 
-    void to_string(std::ostream &os) const override { os << value_; }
+    FloatValue *clone() const { return new FloatValue(*this); }
+
+    void to_string(std::ostream &os) const override { 
+        switch (aggregation_type_) {
+            case Count:
+                os << count;
+                break;
+            case Avg:
+                os << std::fixed<< std::setprecision(2) << avg_;
+                break;
+            default:
+                os << std::fixed<< std::setprecision(2) << value_;
+                break;
+        }
+    }
 
     int compare(const TupleValue &other) const override {
         const FloatValue &float_other = (const FloatValue &)other;
         float result = value_ - float_other.value_;
-        if (result > 0) {  // 浮点数没有考虑精度问题
+        if (result > 0) {  
             return 1;
         }
         if (result < 0) {
@@ -119,6 +147,7 @@ public:
     }
 private:
     float value_;
+    double avg_;
 };
 
 class StringValue : public TupleValue {
@@ -126,7 +155,18 @@ public:
     StringValue(const char *value, int len) : value_(value, len) {}
     explicit StringValue(const char *value) : value_(value) {}
 
-    void to_string(std::ostream &os) const override { os << value_; }
+    StringValue *clone() const { return new StringValue(*this); }
+
+    void to_string(std::ostream &os) const override { 
+        switch (aggregation_type_) {
+            case Count:
+                os << count;
+                break;
+            default:
+                os <<  value_;
+                break;
+        }
+    }
 
     int compare(const TupleValue &other) const override {
         const StringValue &string_other = (const StringValue &)other;

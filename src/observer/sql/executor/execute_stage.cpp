@@ -409,7 +409,7 @@ std::pair<bool, std::string> is_single_query(const Selects &selects) {
     return std::make_pair(false, std::string());
 }
 
-<<<<<<< HEAD
+
 void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples, const TupleSchema group_by_schema) {
   const TupleSchema &schema = all_tuples.schema();
   const auto &output_schema = output_tuples.schema();
@@ -425,7 +425,7 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples, const Tuple
       output_tuple.add(temp_val);
     }
     int group_index = -1;
-    for (int i = 0; i < after.size(); i++) {
+    for (int i = 0; i < output_tuples.size(); i++) {
       bool equal = true;
       const auto &group_by_fields = group_by_schema.fields();
       for (const auto& field : group_by_fields) {
@@ -439,7 +439,7 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples, const Tuple
           }
         }
 
-        const auto& in_output = after.get(i).get(field_index);
+        const auto& in_output = output_tuples.get(i).get(field_index);
         const auto& not_in_output = output_tuple.get(field_index);
 
         if (in_output.compare(not_in_output)!=0) {
@@ -452,32 +452,20 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples, const Tuple
         break;
       }
     }
-    after.merge(std::move(output_tuple), group_index);
+    output_tuples.merge(std::move(output_tuple), group_index);
   }
 }
 
 
 // 这里没有对输入的某些信息做合法性校验，比如查询的列名、where条件中的列名等，没有做必要的合法性校验
 // 需要补充上这一部分. 校验部分也可以放在resolve，不过跟execution放一起也没有关系
-=======
-/**
- * @brief Execute a query. 
- * 这里没有对输入的某些信息做合法性校验，比如查询的列名、where条件中的列名等，没有做必要的合法性校验
- * 需要补充上这一部分. 校验部分也可以放在resolve，不过跟execution放一起也没有关系
- * 
- * @param db 
- * @param sql The query to be executed.
- * @param session_event 
- * @return RC 
- */
->>>>>>> a6fec5263dc3fb116a960e4595c29f48f7dea133
 RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_event) {
-
+    // puts("Enter");
     RC rc = RC::SUCCESS;
     Session *session = session_event->get_client()->session;
     Trx *trx = session->current_trx();
     Selects &selects = sql->sstr.selection;
-
+    // puts("Enter");
     std::pair<bool, std::string> single_query = is_single_query(selects);
     if (single_query.first) {
         for (int i = 0; i < (int)selects.groupby_num; i++) {
@@ -491,7 +479,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
                 strcpy(attr.relation_name, single_query.second.c_str());
         }
     }
-
+    // puts("Enter");
     Table *tables[selects.relation_num];
     TupleSchema schema_result;
     rc = init_select(db, selects, tables, schema_result);

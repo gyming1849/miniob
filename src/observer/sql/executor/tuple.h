@@ -135,6 +135,7 @@ public:
 
   void clear();
   void merge(Tuple &&tuple);
+  void merge(Tuple &&tuple,int group_index);
 
   bool is_empty() const;
   int size() const;

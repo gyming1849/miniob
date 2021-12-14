@@ -1208,7 +1208,7 @@ printf("Unknown character [%c]\n",yytext[0]); return yytext[0];
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 97 "lex_sql.l"
+#line 98 "lex_sql.l"
 ECHO;
 	YY_BREAK
 #line 1215 "lex.yy.c"
@@ -2393,9 +2393,10 @@ void yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 97 "lex_sql.l"
+#line 98 "lex_sql.l"
 
 
 void scan_string(const char *str, yyscan_t scanner) {
-	yy_switch_to_buffer(yy_scan_string(str, scanner), scanner);
+    yy_switch_to_buffer(yy_scan_string(str, scanner), scanner);
 }
+
