@@ -1,7 +1,7 @@
 /* Copyright (c) 2021 Xie Meiyi(xiemeiyi@hust.edu.cn) and OceanBase and/or its affiliates. All
 rights reserved. miniob is licensed under Mulan PSL v2. You can use this software according to the
 terms and conditions of the Mulan PSL v2. You may obtain a copy of Mulan PSL v2 at:
-         http://license.coscl.org.cn/MulanPSL2
+          http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
@@ -16,9 +16,9 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/seda/stage.h"
 #include "rc.h"
+#include "sql/executor/tuple.h"
 #include "sql/parser/parse.h"
 #include "storage/common/table.h"
-#include "sql/executor/tuple.h"
 
 class SessionEvent;
 
@@ -49,9 +49,10 @@ private:
     RC check_attr(const Selects &selects, Table **tables, TupleSchema &schema_result);
     RC init_select(const char *db, const Selects &selects, Table **tables,
                    TupleSchema &schema_result);
-    RC do_cartesian(std::vector<TupleSet> &tuple_sets, std::vector<Condition> &remain_conditions, TupleSet &result);
+    RC do_cartesian(std::vector<TupleSet> &tuple_sets, std::vector<Condition> &remain_conditions,
+                    TupleSet &result);
     RC dfs(std::vector<TupleSet> &tuple_sets, std::vector<Condition> &remain_conditions,
-                     std::shared_ptr<TupleValue> *values, int value_num, TupleSet &result,
-                     std::vector<TupleSet>::const_reverse_iterator);
+           std::shared_ptr<TupleValue> *values, int value_num, TupleSet &result,
+           std::vector<TupleSet>::const_reverse_iterator);
 };
 #endif  //__OBSERVER_SQL_EXECUTE_STAGE_H__
