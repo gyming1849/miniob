@@ -1,8 +1,7 @@
-/* Copyright (c) 2021 Xie Meiyi(xiemeiyi@hust.edu.cn) and OceanBase and/or its affiliates. All rights reserved.
-miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
-                 http://license.coscl.org.cn/MulanPSL2
+/* Copyright (c) 2021 Xie Meiyi(xiemeiyi@hust.edu.cn) and OceanBase and/or its affiliates. All
+rights reserved. miniob is licensed under Mulan PSL v2. You can use this software according to the
+terms and conditions of the Mulan PSL v2. You may obtain a copy of Mulan PSL v2 at:
+         http://license.coscl.org.cn/MulanPSL2
 THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
 EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
@@ -17,8 +16,8 @@ See the Mulan PSL v2 for more details. */
 
 #include <string.h>
 
-#include <string>
 #include <ostream>
+#include <string>
 
 class TupleValue {
 public:
@@ -27,20 +26,22 @@ public:
 
     virtual void to_string(std::ostream &os) const = 0;
     virtual int compare(const TupleValue &other) const = 0;
+    AggregationFunc aggregation_type() {
+        return aggregation_type_;
+    }
+
 private:
+    AggregationFunc aggregation_type_;
 };
 
 class IntValue : public TupleValue {
 public:
-    explicit IntValue(int value) : value_(value) {
-    }
+    explicit IntValue(int value) : value_(value) {}
 
-    void to_string(std::ostream &os) const override {
-        os << value_;
-    }
+    void to_string(std::ostream &os) const override { os << value_; }
 
     int compare(const TupleValue &other) const override {
-        const IntValue & int_other = (const IntValue &)other;
+        const IntValue &int_other = (const IntValue &)other;
         return value_ - int_other.value_;
     }
 
@@ -50,17 +51,14 @@ private:
 
 class FloatValue : public TupleValue {
 public:
-    explicit FloatValue(float value) : value_(value) {
-    }
+    explicit FloatValue(float value) : value_(value) {}
 
-    void to_string(std::ostream &os) const override {
-        os << value_;
-    }
+    void to_string(std::ostream &os) const override { os << value_; }
 
     int compare(const TupleValue &other) const override {
-        const FloatValue & float_other = (const FloatValue &)other;
+        const FloatValue &float_other = (const FloatValue &)other;
         float result = value_ - float_other.value_;
-        if (result > 0) { // 浮点数没有考虑精度问题
+        if (result > 0) {  // 浮点数没有考虑精度问题
             return 1;
         }
         if (result < 0) {
@@ -74,14 +72,10 @@ private:
 
 class StringValue : public TupleValue {
 public:
-    StringValue(const char *value, int len) : value_(value, len){
-    }
-    explicit StringValue(const char *value) : value_(value) {
-    }
+    StringValue(const char *value, int len) : value_(value, len) {}
+    explicit StringValue(const char *value) : value_(value) {}
 
-    void to_string(std::ostream &os) const override {
-        os << value_;
-    }
+    void to_string(std::ostream &os) const override { os << value_; }
 
     int compare(const TupleValue &other) const override {
         const StringValue &string_other = (const StringValue &)other;
@@ -91,5 +85,4 @@ private:
     std::string value_;
 };
 
-
-#endif //__OBSERVER_SQL_EXECUTOR_VALUE_H_
+#endif  //__OBSERVER_SQL_EXECUTOR_VALUE_H_

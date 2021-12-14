@@ -35,8 +35,8 @@ See the Mulan PSL v2 for more details. */
 
 using namespace common;
 
-RC create_selection_executor(Trx *trx, Selects &selects, const char *db,
-                             const char *table_name, SelectExeNode &select_node);
+RC create_selection_executor(Trx *trx, Selects &selects, const char *db, const char *table_name,
+                             SelectExeNode &select_node);
 
 //! Constructor
 ExecuteStage::ExecuteStage(const char *tag) : Stage(tag) {}
@@ -325,7 +325,7 @@ RC ExecuteStage::init_select(const char *db, const Selects &selects, Table **tab
     for (int i = 0; i < (int)selects.condition_num; i++) {
         auto &cur = selects.conditions[i];
         auto &left = cur.left_attr, &right = cur.right_attr;
-        for (int j = 0; j <(int) selects.relation_num; j++) {
+        for (int j = 0; j < (int)selects.relation_num; j++) {
             if (cur.left_is_attr == 1) {
                 if (left.relation_name != nullptr &&
                     strcmp(left.relation_name, selects.relations[j])) {
@@ -480,8 +480,8 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
             }
         }
         TupleSet output_result(schema_result);
-        // RC rc = do_cartesian(tuple_sets, remain_conditions, output_result);
-        RC rc = RC::SUCCESS;
+        RC rc = do_cartesian(tuple_sets, remain_conditions, output_result);
+        // RC rc = RC::SUCCESS;
         if (rc != RC::SUCCESS && rc != RC::MISMATCH) {
             return rc;
         }
@@ -500,7 +500,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     end_trx_if_need(session, trx, true);
     return rc;
 }
-RC ExecuteStage::do_cartesian(std::vector<TupleSet> tuple_sets,
+RC ExecuteStage::do_cartesian(std::vector<TupleSet> &tuple_sets,
                               std::vector<Condition> &remain_conditions, TupleSet &result) {
     TupleSchema tmp;
     for (int i = tuple_sets.size() - 1; i >= 0; i--) {
@@ -509,7 +509,71 @@ RC ExecuteStage::do_cartesian(std::vector<TupleSet> tuple_sets,
     }
     tmp.append(result.schema());
     result = TupleSet(tmp);
-    // rc = cartesian(tuple_sets, condition_num, conditions, values, 0, result, table_num - 1);
+    auto *values = new std::shared_ptr<TupleValue>[tmp.fields().size()];
+    RC rc = dfs(tuple_sets, remain_conditions, values, 0, result, tuple_sets.crbegin());
+    delete values;
+    return rc;
+}
+bool cmp(const TupleValue *left, const TupleValue *right, const CompOp &comp) {
+    int result = left->compare(*right);
+    if (comp == CompOp::EQUAL_TO) return result == 0;
+    if (comp == CompOp::GREAT_EQUAL) return result >= 0;
+    if (comp == CompOp::GREAT_THAN) return result > 0;
+    if (comp == CompOp::LESS_EQUAL) return result <= 0;
+    if (comp == CompOp::LESS_THAN) return result < 0;
+    if (comp == CompOp::NOT_EQUAL) return result != 0;
+    return 1;
+}
+RC ExecuteStage::dfs(std::vector<TupleSet> &tuple_sets, std::vector<Condition> &remain_conditions,
+                     std::shared_ptr<TupleValue> *values, int value_num, TupleSet &result,
+                     std::vector<TupleSet>::const_reverse_iterator cur) {
+    auto schema = result.schema();
+    if (value_num > 0) {
+        for (auto i : remain_conditions) {
+            auto left = i.left_attr, right = i.right_attr;
+            int left_idx = schema.index_of_field(left.relation_name, left.attribute_name,
+                                                 left.aggregation_type);
+            int right_idx = schema.index_of_field(right.relation_name, right.attribute_name,
+                                                  right.aggregation_type);
+            if (left_idx >= value_num || right_idx >= value_num) {
+                continue;
+            }
+            const TupleValue *left_v = values[left_idx].get();
+            const TupleValue *right_v = values[right_idx].get();
+            if (cmp(left_v, right_v, i.comp)) {
+                return RC::MISMATCH;
+            }
+        }
+    }
+    if (cur == tuple_sets.crend()) {
+        Tuple output_tuple;
+        int output_num = schema.fields().size() - value_num;
+        std::shared_ptr<TupleValue> output_value[output_num];
+        for (int i = 0; i < output_num; i++) {
+            auto field = schema.field(value_num + i);
+            int val_idx = schema.index_of_field(field.table_name(), field.field_name(),
+                                                field.aggregation_type());
+            output_value[i] = values[val_idx];
+        }
+        for (int i = 0; i < output_num; i++) {
+            output_tuple.add(output_value[i]);
+        }
+
+        result.merge(std::move(output_tuple));
+        return RC::SUCCESS;
+    }
+    for (int i = 0; i < cur->size(); i++) {
+        auto &cur_tuple = cur->get(i);
+        int cur_size = cur_tuple.size();
+        for (int j = 0; j < cur_size; j++) {
+            values[value_num + j] = cur_tuple.get_pointer(j);
+        }
+        RC rc = dfs(tuple_sets, remain_conditions, values, value_num + cur_size, result, cur + 1);
+        if (rc != RC::SUCCESS && rc != RC::MISMATCH) {
+            return rc;
+        }
+        value_num -= cur_size;
+    }
     return RC::SUCCESS;
 }
 bool match_table(const Selects &selects, const char *table_name_in_condition,
@@ -520,7 +584,6 @@ bool match_table(const Selects &selects, const char *table_name_in_condition,
 
     return selects.relation_num == 1;
 }
-
 
 // 把所有的表和只跟这张表关联的condition都拿出来，生成最底层的select 执行节点
 RC create_selection_executor(Trx *trx, Selects &selects, const char *db, const char *table_name,
