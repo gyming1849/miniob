@@ -29,9 +29,17 @@ public:
     AggregationFunc aggregation_type() {
         return aggregation_type_;
     }
+    void set_aggregation_type(AggregationFunc aggregation) { 
+        aggregation_type_ = aggregation; 
+    }
+    int get_count() const { return count; }
+    int get_avg() const { return avg_; }
+  }
 
-private:
-    AggregationFunc aggregation_type_;
+protected:
+    AggregationFunc aggregation_type_ = None;
+    int count = 1;
+    double avg_ = 0;
 };
 
 class IntValue : public TupleValue {
@@ -43,6 +51,29 @@ public:
     int compare(const TupleValue &other) const override {
         const IntValue &int_other = (const IntValue &)other;
         return value_ - int_other.value_;
+    }
+    void merge(const TupleValue &other) {
+        const IntValue &int_other = (const IntValue &)other;
+        switch (aggregation_type_) {
+            case Count: {
+                count++;
+            } break;
+            case Sum: {
+                value_ = value_ + int_other.value_;
+            } break;
+            case Avg: {
+                int pre_count = count++;
+                avg_ = (avg_ * pre_count + int_other.value_) / count;
+            } break;
+            case Max: {
+                if (compare(int_other) < 0) value_ = int_other.value_;
+            } break;
+            case Min: {
+                if (compare(int_other) > 0) value_ = int_other.value_;
+            }
+            default: {
+            }
+        }
     }
 
 private:
@@ -66,6 +97,26 @@ public:
         }
         return 0;
     }
+    void merge(const TupleValue &other) {
+        const FloatValue &int_other = (const FloatValue &)other;
+        switch (aggregation_type_) {
+            case Count: {
+                count++;
+            } break;
+            case Avg: {
+                int pre_count = count++;
+                avg_ = (avg_ * pre_count + int_other.value_) / count;
+            } break;
+            case Max: {
+                if (compare(int_other) < 0) value_ = int_other.value_;
+            } break;
+            case Min: {
+                if (compare(int_other) > 0) value_ = int_other.value_;
+            }
+            default: {
+            }
+        }
+    }
 private:
     float value_;
 };
@@ -80,6 +131,24 @@ public:
     int compare(const TupleValue &other) const override {
         const StringValue &string_other = (const StringValue &)other;
         return strcmp(value_.c_str(), string_other.value_.c_str());
+    }
+    void merge(const TupleValue &other) {
+        const StringValue &int_other = (const StringValue &)other;
+        switch (aggregation_type_) {
+            case Count: {
+                count++;
+            } break;
+            case Avg: {
+            } break;
+            case Max: {
+                if (compare(int_other) < 0) value_ = int_other.value_;
+            } break;
+            case Min: {
+                if (compare(int_other) > 0) value_ = int_other.value_;
+            }
+            default: {
+            }
+        }
     }
 private:
     std::string value_;

@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include <stddef.h>
+#include <math.h>
 #include "condition_filter.h"
 #include "record_manager.h"
 #include "common/log/log.h"
