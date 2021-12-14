@@ -262,7 +262,7 @@ void query_destroy(Query *query);  // reset and delete
 
 void selects_append_orderby(Selects *selects, OrderBy *orderby_attr);
 void selects_append_groupby(Selects *selects, RelAttr *groupby_attr);
-void relation_attr_init_with_aggregation_const(RelAttr *relation_attr, int value, AggregationFunc aggregation_type);
+void relation_attr_init_with_const_aggregation(RelAttr *relation_attr, int value, AggregationFunc aggregation_type);
 void relation_attr_init_with_aggregation(RelAttr *relation_attr, const char *relation_name, const char *attribute_name, AggregationFunc aggregation_type);
 
 
