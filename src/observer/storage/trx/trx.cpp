@@ -154,6 +154,9 @@ RC Trx::commit() {
                                   rid.page_num, rid.slot_num, rc, strrc(rc));
                     }
                 } break;
+                case Operation::Type::UPDATE: {
+                    ;
+                }break;
                 default: {
                     LOG_PANIC("Unknown operation. type=%d", (int)operation.type());
                 } break;
