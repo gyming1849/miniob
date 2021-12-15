@@ -252,6 +252,7 @@ RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema 
             int flag = 0;
             for (int j = 0; j < (int)selects.relation_num; j++) {
                 if (strcmp(attr.relation_name, selects.relations[j]) == 0) {
+                    // printf("%s %s\n",attr.relation_name,selects.relations[j]);
                     flag = 1;
                     if (strcmp("*", attr.attribute_name) == 0) {
                         TupleSchema tmp;
@@ -265,6 +266,10 @@ RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema 
                     } else
                         schema_add_field(tables[j], attr.attribute_name, attr.aggregation_type,
                                          schema_result);
+                }
+                else
+                {
+                    // printf("%s %s\n",attr.relation_name,selects.relations[j]);
                 }
             }
             if (flag == 0) {
@@ -471,7 +476,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     Session *session = session_event->get_client()->session;
     Trx *trx = session->current_trx();
     Selects &selects = sql->sstr.selection;
-    puts("Enter");
+    // puts("Enter");
     std::pair<bool, std::string> single_query = is_single_query(selects);
     if (single_query.first) {
         for (int i = 0; i < (int)selects.groupby_num; i++) {
@@ -486,7 +491,15 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
                 attr.relation_name = strdup(single_query.second.c_str());
             }
         }
+        for (int i = 0; i < (int)selects.attr_num; i++) {
+            auto &attr = selects.attributes[i];
+            if (!attr.is_const && attr.relation_name == nullptr) {
+                attr.relation_name = strdup(single_query.second.c_str());
+            }
+        }
     }
+
+
     // puts("Enter");
     Table *tables[selects.relation_num];
     TupleSchema schema_result;
@@ -529,10 +542,22 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
             tuple_sets.push_back(std::move(tuple_set));
         }
     }
+    TupleSchema groupby_schema;
+    for (int i = selects.groupby_num - 1; i >= 0; i--) {
+        const RelAttr &attr = selects.groupby_attrs[i];
+        if (selects.relation_num > 1) {
+            groupby_schema.add(UNDEFINED, attr.relation_name, attr.attribute_name, None);
+        } else {
+            groupby_schema.add(UNDEFINED, selects.relations[0], attr.attribute_name, None);
+        }
+    }
     // puts("Enter");
+    std::stringstream ss;
     TupleSet output_result;
+    
     if (tuple_sets.size() > 1) {
         // 本次查询了多张表，需要做join操作
+        // TupleSet output(output_schema);
         std::vector<Condition> remain_conditions;
         for (int i = 0; i < (int)selects.condition_num; i++) {
             const Condition &condition = selects.conditions[i];
@@ -546,21 +571,30 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
             return rc;
         }
 
-        output_result.set_schema(schema_result);
-        // if (selects.group_by_num > 0){
-        //     output_result.clear();
-        //     check_attr(selects, tables, output_schema);
-        //     TupleSchema temp(output_schema);
-        //     temp.append(group_by_schema);
-        //     TupleSet ouput_after_group(temp);
-        //     do_groupby(output, ouput_after_group, group_by_schema);
-        //     ouput_after_group.set_schema(output_schema);
-        //     ouput_after_group.print(ss, false);
-        // }
-
     } else {
         // 当前只查询一张表，直接返回结果即可
-        output_result = std::move(tuple_sets.front());
+        // puts("FUCK YOU");
+        
+        TupleSet &output = tuple_sets.front();
+        output_result.set_schema(schema_result);
+        if (selects.groupby_num > 0){
+            // printf("%d \n",output.size());
+            output_result.clear();
+            check_attr(selects, tables, schema_result);
+            TupleSchema temp(schema_result);
+            temp.append(groupby_schema);
+            TupleSet ouput_after_group(temp);
+            do_groupby(output, ouput_after_group, groupby_schema);
+            printf("%d \n",schema_result.fields().size());
+            ouput_after_group.set_schema(schema_result);
+            ouput_after_group.print(ss, false);
+        }
+        else
+        {
+            output_result = std::move(tuple_sets.front());
+            output_result.print(ss, tuple_sets.size() > 1);
+        }
+        
     }
 
     
@@ -569,12 +603,14 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         output_result.sort(selects.orderby_num, selects.orderby_attrs);
     }
 
+    
+
     for (SelectExeNode *&tmp_node : select_nodes) {
         delete tmp_node;
     }
 
-    std::stringstream ss;
-    output_result.print(ss, tuple_sets.size() > 1);
+    
+    
 
     session_event->set_response(ss.str());
     end_trx_if_need(session, trx, true);
