@@ -98,7 +98,16 @@ size_t TupleSchema::index_of_field(const char *table_name, const char *field_nam
     }
     return -1;
 }
-
+std::string get_aggregation(AggregationFunc a, std::string fieldname) {
+    std::string aggregation = "";
+    if (a == AggregationFunc::Avg) aggregation = "Avg";
+    if (a == AggregationFunc::Count) aggregation = "Count";
+    if (a == AggregationFunc::Max) aggregation = "Max";
+    if (a == AggregationFunc::Min) aggregation = "Min";
+    if (a == AggregationFunc::Sum) aggregation = "Sum";
+    if (a == AggregationFunc::None) return fieldname;
+    return aggregation + std::string("(") + fieldname + std::string(")");
+}
 void TupleSchema::print(std::ostream &os, bool multi) const {
     if (fields_.empty()) {
         os << "No schema";
@@ -113,16 +122,25 @@ void TupleSchema::print(std::ostream &os, bool multi) const {
 
     for (std::vector<TupleField>::const_iterator iter = fields_.begin(), end = --fields_.end();
          iter != end; ++iter) {
-        if (table_names.size() > 1) {
-            os << iter->table_name() << ".";
-        }
-        os << iter->field_name() << " | ";
-    }
 
-    if (multi) {
-        os << fields_.back().table_name() << ".";
+        std::string fieldname;
+        if (table_names.size() > 1) {
+            fieldname = std::string(iter->table_name()) + ".";
+        }
+        fieldname += std::string(iter->field_name());
+
+        os<<get_aggregation(iter->aggregation_type(),fieldname);
+
+        os << " | ";
     }
-    os << fields_.back().field_name() << std::endl;
+    std::string fieldname;
+    
+    if (multi) {
+        // os << fields_.back().table_name() << ".";
+        fieldname = std::string(fields_.back().table_name()) + ".";
+    }
+    fieldname+=fields_.back().field_name();
+    os << get_aggregation(fields_.back().aggregation_type(),fieldname) << std::endl;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -171,7 +189,7 @@ void TupleSet::merge(Tuple &&tuple, int group_index) {
     }
     const std::vector<std::shared_ptr<TupleValue>> old_values = tuples_[group_index].values();
     int value_idx = 0;
-    for (std::shared_ptr<TupleValue> old_value: old_values) {
+    for (std::shared_ptr<TupleValue> old_value : old_values) {
         old_value->merge(tuple.get(value_idx++));
     }
     return;
@@ -221,11 +239,11 @@ void TupleSet::print(std::ostream &os, bool multi) const {
     }
 
     schema_.print(os, multi);
-    
+
     for (const Tuple &item : tuples_) {
         const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
         if (values.empty()) continue;
-        
+
         auto size = schema_.fields().size();
         // LOG_WARN("%d %d",values.size(),size);
         for (size_t i = 0; i < size - 1; i++) {
@@ -234,7 +252,7 @@ void TupleSet::print(std::ostream &os, bool multi) const {
             os << " | ";
         }
         // LOG_WARN("%d %d",values.size(),size);
-        values[size - 1]->to_string(os); 
+        values[size - 1]->to_string(os);
         // LOG_WARN("%d %d",values.size(),size);
         os << std::endl;
     }
