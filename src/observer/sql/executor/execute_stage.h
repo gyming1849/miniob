@@ -49,10 +49,10 @@ private:
     RC check_attr(const Selects &selects, Table **tables, TupleSchema &schema_result);
     RC init_select(const char *db, const Selects &selects, Table **tables,
                    TupleSchema &schema_result);
-    RC do_cartesian(std::vector<TupleSet> &tuple_sets, std::vector<Condition> &remain_conditions,
-                    TupleSet &result);
-    RC dfs(std::vector<TupleSet> &tuple_sets, std::vector<Condition> &remain_conditions,
-           std::shared_ptr<TupleValue> *values, int value_num, TupleSet &result,
-           std::vector<TupleSet>::const_reverse_iterator);
+    void do_cartesian(std::vector<TupleSet> &tuple_sets, std::vector<Condition> &remain_conditions,
+                      TupleSet &result);
+    void dfs(std::vector<TupleSet> &tuple_sets, std::vector<Condition> &remain_conditions,
+             std::shared_ptr<TupleValue> *values, int value_num, TupleSet &result,
+             std::vector<TupleSet>::const_reverse_iterator);
 };
 #endif  //__OBSERVER_SQL_EXECUTE_STAGE_H__

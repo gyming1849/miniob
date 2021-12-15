@@ -46,7 +46,7 @@ public:
 
     const TupleValue &get(int index) const { return *values_[index]; }
 
-    const std::shared_ptr<TupleValue> &get_pointer(int index) const { return values_[index]; }
+    const std::shared_ptr<TupleValue> &get_pointer(size_t index) const { return values_[index]; }
 
 private:
     std::vector<std::shared_ptr<TupleValue>> values_;
@@ -60,10 +60,10 @@ public:
           aggregation_type_(aggregation_type) {}
 
     AttrType type() const { return type_; }
-
     const char *table_name() const { return table_name_.c_str(); }
     const char *field_name() const { return field_name_.c_str(); }
     const AggregationFunc aggregation_type() const { return aggregation_type_; }
+
     std::string to_string() const;
 
 private:
@@ -88,8 +88,8 @@ public:
 
     const TupleField &field(int index) const { return fields_[index]; }
 
-    int index_of_field(const char *table_name, const char *field_name,
-                       const AggregationFunc aggregation_type) const;
+    size_t index_of_field(const char *table_name, const char *field_name,
+                          const AggregationFunc aggregation_type) const;
     void clear() { fields_.clear(); }
 
     void print(std::ostream &os, bool multi) const;
@@ -118,9 +118,9 @@ public:
 
     void clear();
     void merge(Tuple &&tuple);
-    void merge(Tuple &&tuple,int group_index);
+    void merge(Tuple &&tuple, int group_index);
     bool is_empty() const;
-    int size() const;
+    size_t size() const;
     const Tuple &get(int index) const;
     const std::vector<Tuple> &tuples() const;
 
