@@ -562,8 +562,10 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
                 remain_conditions.push_back(condition);
             }
         }
+        output_result.set_schema(schema_result);
         do_cartesian(tuple_sets, remain_conditions, output_result);
         output_result.set_schema(schema_result);
+        
     } else {
         // 当前只查询一张表，直接返回结果即可
         output_result = std::move(tuple_sets.front());
