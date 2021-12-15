@@ -129,18 +129,16 @@ void TupleSchema::print(std::ostream &os, bool multi) const {
         }
         fieldname += std::string(iter->field_name());
 
-        os<<get_aggregation(iter->aggregation_type(),fieldname);
-
+        os << get_aggregation(iter->aggregation_type(), fieldname);
         os << " | ";
     }
     std::string fieldname;
-    
+
     if (multi) {
-        // os << fields_.back().table_name() << ".";
         fieldname = std::string(fields_.back().table_name()) + ".";
     }
-    fieldname+=fields_.back().field_name();
-    os << get_aggregation(fields_.back().aggregation_type(),fieldname) << std::endl;
+    fieldname += fields_.back().field_name();
+    os << get_aggregation(fields_.back().aggregation_type(), fieldname) << std::endl;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -246,18 +244,14 @@ void TupleSet::print(std::ostream &os, bool multi) const {
         if (values.empty()) continue;
 
         auto size = schema_.fields().size();
-        // LOG_WARN("%d %d",values.size(),size);
         for (size_t i = 0; i < size - 1; i++) {
             const auto &value = values[i];
             value->to_string(os);
             os << " | ";
         }
-        // LOG_WARN("%d %d",values.size(),size);
         values[size - 1]->to_string(os);
-        // LOG_WARN("%d %d",values.size(),size);
         os << std::endl;
     }
-    // LOG_WARN("print end");
 }
 
 void TupleSet::set_schema(const TupleSchema &schema) { schema_ = schema; }
@@ -282,7 +276,6 @@ void TupleRecordConverter::add_record(const char *record) {
     const TableMeta &table_meta = table_->table_meta();
     for (const TupleField &field : schema.fields()) {
         const FieldMeta *field_meta = table_meta.field(field.field_name());
-        // std::cout<<field.field_name()<<"\n";
         assert(field_meta != nullptr);
         switch (field_meta->type()) {
             case INTS: {
