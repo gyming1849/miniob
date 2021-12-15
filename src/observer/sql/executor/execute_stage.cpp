@@ -344,7 +344,8 @@ RC ExecuteStage::init_select(const char *db, const Selects &selects, Table **tab
         const auto &left = cur.left_attr, &right = cur.right_attr;
         bool left_flag = false, right_flag = false;
 
-        if (left.relation_name == nullptr || right.relation_name == nullptr) {
+        if ((cur.left_is_attr && !left.is_const && left.relation_name == nullptr) || 
+            (cur.right_is_attr && !right.is_const && right.relation_name == nullptr)) {
             throw_error(RC::SCHEMA_TABLE_NAME_ILLEGAL, "Condition #%lu missing relation name",
                         selects.condition_num - i);
         }
@@ -435,7 +436,7 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples,
     const auto &output_schema = output_tuples.schema();
     const auto &output_fields = output_schema.fields();
     // output_schema.print(std::cout,1);
-    // schema.print(std::cout,1);
+    schema.print(std::cout,1);
     int output_size = output_fields.size();
     // printf("output_size is %d\n",output_size);
     for (auto &all_tuple : all_tuples.tuples()) {
@@ -450,7 +451,9 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples,
             if(val_idx>=0)
                 temp_val = all_tuple.get(val_idx).clone();
             else
-                temp_val = new IntValue(atoi(field.field_name()));
+            {
+                temp_val = new FloatValue((float)atoi(field.field_name()));
+            }
             temp_val->set_aggregation_type(field.aggregation_type());
             // printf("val_idx is %d\n",val_idx);
             output_tuple.add(temp_val);
@@ -467,10 +470,10 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples,
                         field_index = j;
                         break;
                     }
-                    else
-                    {
-                        printf("table :%s %s\n attr:%s %s\n",field.table_name(), output_schema.fields()[j].table_name(),field.field_name(), output_schema.fields()[j].field_name());
-                    }
+                    // else
+                    // {
+                    //     printf("table :%s %s\n attr:%s %s\n",field.table_name(), output_schema.fields()[j].table_name(),field.field_name(), output_schema.fields()[j].field_name());
+                    // }
                 }
                 // printf("field_index is %d\n",field_index);
 
@@ -523,12 +526,15 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     int all_agg = 1,none_agg = 1;
     for (size_t i = 0; i < selects.attr_num; i++)
     {
-        auto &attr = selects.groupby_attrs[i];
+        auto &attr = selects.attributes[i];
+        // printf("%d\n",attr.aggregation_type);
         if(attr.aggregation_type == None)
             all_agg = 0;
         else
             none_agg = 0; 
     }
+    // printf("%d %d\n",all_agg,none_agg);
+
     std::pair<bool, std::string> single_query = is_single_query(selects);
     if (single_query.first) {
         for (int i = 0; i < (int)selects.groupby_num; i++) {
@@ -550,6 +556,18 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
                 attr.relation_name = strdup(single_query.second.c_str());
             }
         }
+
+        for (int i = 0; i < (int)selects.condition_num; i++) {
+            auto &attr = selects.conditions[i];
+            if (attr.left_is_attr && !attr.left_attr.is_const && attr.left_attr.relation_name == nullptr) {
+                attr.left_attr.relation_name = strdup(single_query.second.c_str());
+                // puts(attr.left_attr.relation_name);
+            }
+
+            if (attr.right_is_attr && !attr.right_attr.is_const && attr.right_attr.relation_name == nullptr) {
+                attr.right_attr.relation_name = strdup(single_query.second.c_str());
+            }
+        }
     }
 
     Table *tables[selects.relation_num];
@@ -559,7 +577,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     if (rc != RC::SUCCESS) {
         return rc;
     }
-    if(selects.groupby_num > 0)
+    if(selects.groupby_num > 0 || all_agg)
     {
         schema_result.clear();
         for (size_t i = 0; i < selects.relation_num; i++) {
@@ -583,7 +601,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         }
         select_nodes.push_back(select_node);
     }
-    // puts("YES");
+    
     if (select_nodes.empty()) {
         LOG_ERROR("No table given");
         end_trx_if_need(session, trx, false);
@@ -593,8 +611,12 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     std::vector<TupleSet> tuple_sets;
     for (SelectExeNode *&node : select_nodes) {
         TupleSet tuple_set;
+        // tuple_set.print(std::cout,1);
+        puts("YES");
         rc = node->execute(tuple_set);
+        // puts("YES");
         if (rc != RC::SUCCESS) {
+            
             for (SelectExeNode *&tmp_node : select_nodes) {
                 delete tmp_node;
             }
@@ -604,6 +626,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
             tuple_sets.push_back(std::move(tuple_set));
         }
     }
+    
 
     TupleSet output_result;
     if (tuple_sets.size() > 1) {
@@ -629,7 +652,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         // output_result.get_schema().print(std::cout,false);
         // puts("YES2");
     }
-
+    puts("YES");
     // group-by
     TupleSchema groupby_schema;
     for (int i = selects.groupby_num - 1; i >= 0; i--) {
@@ -642,11 +665,11 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         // std::cout << selects.relations[0]<<"\n";
         // groupby_schema.print(std::cout,0);
     }
-    if (selects.groupby_num > 0) {
+    if (selects.groupby_num > 0 || all_agg) {
         // printf("%d \n",output_result.size());
         TupleSet output = std::move(output_result);
         // output.set_schema(schema_result);
-        // output_result.set_schema(schema_result);
+        output.set_schema(schema_result);
         
         // output_result.clear();
         schema_result.clear();
@@ -663,16 +686,6 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         ouput_after_group.set_schema(schema_result);
         // ouput_after_group.print(ss, false);
         output_result = std::move(ouput_after_group);
-    }
-    else{
-        if(!none_agg && !all_agg)
-        {
-
-        }
-        else if(all_agg)
-        {
-            
-        }
     }
 
     // order-by
@@ -792,11 +805,12 @@ RC create_selection_executor(Trx *trx, Selects &selects, const char *db, const c
                         LOG_WARN("Can't use * in this Aggregation");
                         return RC::MISMATCH;
                     }
-                    schema.add(INTS, table->name(), attr.attribute_name, attr.aggregation_type);
+                    // schema.add(INTS, table->name(), attr.attribute_name, attr.aggregation_type);
+                    TupleSchema::from_table(table, schema);
                     continue;
                 } else {
                     TupleSchema::from_table(table, schema);
-                    printf("%s \n",table->name());
+                    // printf("%s \n",table->name());
                 }
                 break;
             } else if (attr.aggregation_type != None && attr.is_const) {  
@@ -813,7 +827,7 @@ RC create_selection_executor(Trx *trx, Selects &selects, const char *db, const c
             }
         }
     }
-
+    puts("NO");
     // 找出仅与此表相关的过滤条件, 或者都是值的过滤条件
     std::vector<DefaultConditionFilter *> condition_filters;
     for (size_t i = 0; i < selects.condition_num; i++) {

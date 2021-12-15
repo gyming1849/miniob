@@ -191,6 +191,7 @@ void TupleSet::merge(Tuple &&tuple, int group_index) {
     int value_idx = 0;
     for (std::shared_ptr<TupleValue> old_value : old_values) {
         old_value->merge(tuple.get(value_idx++));
+        old_value->to_string(std::cout);
     }
     return;
 }
@@ -281,6 +282,7 @@ void TupleRecordConverter::add_record(const char *record) {
     const TableMeta &table_meta = table_->table_meta();
     for (const TupleField &field : schema.fields()) {
         const FieldMeta *field_meta = table_meta.field(field.field_name());
+        // std::cout<<field.field_name()<<"\n";
         assert(field_meta != nullptr);
         switch (field_meta->type()) {
             case INTS: {

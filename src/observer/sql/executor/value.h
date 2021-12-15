@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include <string>
 #include <string.h>
 #include <iomanip>
+#include <iostream>
 
 class TupleValue {
 public:
@@ -68,6 +69,12 @@ public:
     }
     void merge(const TupleValue &other) {
         const IntValue &int_other = (const IntValue &)other;
+        this->to_string(std::cout);
+        putchar(' ');
+        other.to_string(std::cout);
+        putchar(' ');
+        std::cout<<aggregation_type_;
+        puts("");
         switch (aggregation_type_) {
             case Count: {
                 count++;
