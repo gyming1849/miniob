@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include <sstream>
 #include <string>
 
+#include "exception.h"
 #include "execute_stage.h"
 
 #include "common/io/io.h"
@@ -124,7 +125,13 @@ void ExecuteStage::handle_request(common::StageEvent *event) {
 
     switch (sql->flag) {
         case SCF_SELECT: {  // select
-            do_select(current_db, sql, exe_event->sql_event()->session_event());
+            try {
+                do_select(current_db, sql, exe_event->sql_event()->session_event());
+            } catch (std::pair<RC, char *> &err_info) {
+                std::stringstream ss;
+                ss << "Error(" << (int)err_info.first << "): " << err_info.second << "\n";
+                session_event->set_response(ss.str());
+            }
             exe_event->done_immediate();
         } break;
 
@@ -302,11 +309,11 @@ RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema 
 }
 RC ExecuteStage::init_select(const char *db, const Selects &selects, Table **tables,
                              TupleSchema &schema_result) {
-    for (int i = 0; i < (int)selects.relation_num; i++) {
+    // validator for <from-list>
+    for (size_t i = 0; i < selects.relation_num; i++) {
         tables[i] = DefaultHandler::get_default().find_table(db, selects.relations[i]);
         if (tables[i] == nullptr) {
-            LOG_WARN("No such table [%s] in db [%s]", selects.relations[i], db);
-            return RC::SCHEMA_TABLE_NOT_EXIST;
+            throw_error(RC::SCHEMA_TABLE_NOT_EXIST, "No such table [%s] in db [%s]", selects.relations[i], db);
         }
     }
 
@@ -318,35 +325,34 @@ RC ExecuteStage::init_select(const char *db, const Selects &selects, Table **tab
     if (rc != RC::SUCCESS) {
         return rc;
     }
-    bool left_flag = false, right_flag = false;
+
+    // validator for <condition>
     size_t left_idx = 0, right_idx = 0;
-    for (int i = 0; i < (int)selects.condition_num; i++) {
-        auto &cur = selects.conditions[i];
-        auto &left = cur.left_attr, &right = cur.right_attr;
+    for (size_t i = 0; i < selects.condition_num; i++) {
+        const auto &cur = selects.conditions[i];
+        const auto &left = cur.left_attr, &right = cur.right_attr;
+        bool left_flag = false, right_flag = false;
+
+        if (left.relation_name == nullptr || right.relation_name == nullptr) {
+            throw_error(RC::SCHEMA_TABLE_NAME_ILLEGAL, "Condition #%lu missing relation name", selects.condition_num - i);
+        }
+
         for (int j = 0; j < (int)selects.relation_num; j++) {
             if (cur.left_is_attr == 1) {
-                if (left.relation_name != nullptr &&
-                    strcmp(left.relation_name, selects.relations[j])) {
+                if (!strcmp(left.relation_name, selects.relations[j])) {
                     left_flag = true;
                     left_idx = j;
-                } else {
-                    LOG_WARN("Condition missing relation name", left.relation_name);
-                    return RC::SCHEMA_FIELD_MISSING;
                 }
             }
             if (cur.right_is_attr == 1) {
-                if (right.relation_name != nullptr &&
-                    strcmp(right.relation_name, selects.relations[j])) {
+                if (!strcmp(right.relation_name, selects.relations[j])) {
                     right_flag = true;
                     right_idx = j;
-                } else {
-                    LOG_WARN("Condition missing relation name", right.relation_name);
-                    return RC::SCHEMA_FIELD_MISSING;
                 }
             }
         }
         if (cur.left_is_attr == 1 && left.relation_name != nullptr) {
-            if (left_flag == 0) {
+            if (!left_flag) {
                 LOG_WARN("left attr's relation [%s] is not exist", left.relation_name);
                 return RC::MISMATCH;
             }
@@ -357,7 +363,7 @@ RC ExecuteStage::init_select(const char *db, const Selects &selects, Table **tab
             }
         }
         if (cur.right_is_attr == 1 && right.relation_name != nullptr) {
-            if (right_flag == 0) {
+            if (!right_flag) {
                 LOG_WARN("right attr's relation [%s] is not exist", right.relation_name);
                 return RC::MISMATCH;
             }
@@ -466,12 +472,11 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples, const Tuple
  * @return RC 
  */
 RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_event) {
-    // puts("Enter");
     RC rc = RC::SUCCESS;
     Session *session = session_event->get_client()->session;
     Trx *trx = session->current_trx();
     Selects &selects = sql->sstr.selection;
-    puts("Enter");
+
     std::pair<bool, std::string> single_query = is_single_query(selects);
     if (single_query.first) {
         for (int i = 0; i < (int)selects.groupby_num; i++) {
@@ -487,10 +492,13 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
             }
         }
     }
-    // puts("Enter");
+    
     Table *tables[selects.relation_num];
     TupleSchema schema_result;
     rc = init_select(db, selects, tables, schema_result);
+    if (rc != RC::SUCCESS) {
+        return rc;
+    }
 
     // 把所有的表和只跟这张表关联的 condition 都拿出来，生成最底层的 select 执行节点
     std::vector<SelectExeNode *> select_nodes;
@@ -508,7 +516,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         }
         select_nodes.push_back(select_node);
     }
-    // puts("Enter");
+    
     if (select_nodes.empty()) {
         LOG_ERROR("No table given");
         end_trx_if_need(session, trx, false);

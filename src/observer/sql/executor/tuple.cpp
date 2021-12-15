@@ -154,7 +154,7 @@ void TupleSet::merge(Tuple &&tuple) {
     }
     // 聚合运算的每一个阶段，tuples_ 都只含有一个 Tuple
     const std::vector<std::shared_ptr<TupleValue>> old_values = tuples_[0].values();
-    int value_idx = 0;
+    // int value_idx = 0;
     for (std::shared_ptr<TupleValue> old_value : old_values) {
         if (old_value->aggregation_type() == None) {
             tuples_.emplace_back(std::move(tuple));
@@ -171,7 +171,7 @@ void TupleSet::merge(Tuple &&tuple,int group_index) {
         return;
     }
     const std::vector<std::shared_ptr<TupleValue>> old_values = tuples_[group_index].values();
-    int value_idx = 0;
+    // int value_idx = 0;
     for (std::shared_ptr<TupleValue> old_value : old_values) {
         if (old_value->aggregation_type() == None) {
             tuples_.emplace_back(std::move(tuple));
@@ -229,7 +229,7 @@ void TupleSet::print(std::ostream &os, bool multi) const {
         const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
 
         auto size = schema_.fields().size();
-        for (int i = 0; i < size - 1; i++) {
+        for (size_t i = 0; i < size - 1; i++) {
             const auto &value = values[i];
             value->to_string(os);
             os << " | ";
