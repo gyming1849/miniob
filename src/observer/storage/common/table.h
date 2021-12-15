@@ -89,6 +89,7 @@ private:
 private:
   RC init_record_handler(const char *base_dir);
   RC make_record(int value_num, const Value *values, char * &record_out);
+  RC update_record(Trx *trx, Record *record, const char *old_data);
 
 private:
   Index *find_index(const char *index_name) const;
