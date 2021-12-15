@@ -648,7 +648,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         do_groupby(output, ouput_after_group, groupby_schema);
 
         // printf("%d \n",schema_result.fields().size());
-        // ouput_after_group.set_schema(schema_result);
+        ouput_after_group.set_schema(schema_result);
         // ouput_after_group.print(ss, false);
         output_result = std::move(ouput_after_group);
     }
