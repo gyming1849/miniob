@@ -234,7 +234,7 @@ void TupleSet::print(std::ostream &os, bool multi) const {
             value->to_string(os);
             os << " | ";
         }
-        values[size - 1]->to_string(os);
+        values[size - 1]->to_string(os); 
         os << std::endl;
     }
 }
