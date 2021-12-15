@@ -224,19 +224,24 @@ void TupleSet::print(std::ostream &os, bool multi) const {
     }
 
     schema_.print(os, multi);
-
+    
     for (const Tuple &item : tuples_) {
         const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
         if (values.empty()) continue;
+        
         auto size = schema_.fields().size();
+        LOG_WARN("%d %d",values.size(),size);
         for (size_t i = 0; i < size - 1; i++) {
             const auto &value = values[i];
             value->to_string(os);
             os << " | ";
         }
+        LOG_WARN("%d %d",values.size(),size);
         values[size - 1]->to_string(os); 
+        LOG_WARN("%d %d",values.size(),size);
         os << std::endl;
     }
+    LOG_WARN("print end");
 }
 
 void TupleSet::set_schema(const TupleSchema &schema) { schema_ = schema; }
