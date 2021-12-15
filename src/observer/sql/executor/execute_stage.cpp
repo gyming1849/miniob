@@ -589,9 +589,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     }
 
     std::stringstream ss;
-    puts("594!");
     output_result.print(ss, tuple_sets.size() > 1);
-
     session_event->set_response(ss.str());
     end_trx_if_need(session, trx, true);
     return rc;

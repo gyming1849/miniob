@@ -227,14 +227,14 @@ void TupleSet::print(std::ostream &os, bool multi) const {
 
     for (const Tuple &item : tuples_) {
         const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
-
+        if (values.empty()) continue;
         auto size = schema_.fields().size();
         for (size_t i = 0; i < size - 1; i++) {
             const auto &value = values[i];
             value->to_string(os);
             os << " | ";
         }
-        values[size - 1]->to_string(os);
+        values[size - 1]->to_string(os); 
         os << std::endl;
     }
 }
