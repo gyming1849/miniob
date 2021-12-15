@@ -488,7 +488,19 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples,
             }
         }
         // printf("%d\n",group_index);
+        // // output_tuple.print(std::cout,1);
+        // const std::vector<std::shared_ptr<TupleValue>> &values = output_tuple.values();
+        // auto size = output_tuple.size();
+        // for (size_t j = 0; j < size - 1; j++) {
+        //     const auto &value = values[j];
+        //     value->to_string(std::cout);
+        //     std::cout << " | ";
+        // }
+        // values[size - 1]->to_string(std::cout);
+        // puts("");
+        
         output_tuples.merge(std::move(output_tuple), group_index);
+        // output_tuples.print(std::cout,1);
     }
 }
 
@@ -648,7 +660,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         do_groupby(output, ouput_after_group, groupby_schema);
 
         // printf("%d \n",schema_result.fields().size());
-        // ouput_after_group.set_schema(schema_result);
+        ouput_after_group.set_schema(schema_result);
         // ouput_after_group.print(ss, false);
         output_result = std::move(ouput_after_group);
     }
