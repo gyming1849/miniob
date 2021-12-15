@@ -554,7 +554,11 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
             return rc;
         }
 
+        // output_result.set_schema(schema_result);
+        std::stringstream ss;
         output_result.set_schema(schema_result);
+        output_result.print(ss, 1);
+        
         // if (selects.group_by_num > 0){
         //     output_result.clear();
         //     check_attr(selects, tables, output_schema);
@@ -565,6 +569,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         //     ouput_after_group.set_schema(output_schema);
         //     ouput_after_group.print(ss, false);
         // }
+        // LOG_WARN
 
     } else {
         // 当前只查询一张表，直接返回结果即可
@@ -582,8 +587,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     }
 
     std::stringstream ss;
-    output_result.print(ss, tuple_sets.size() > 1);
-
+    // output_result.print(ss, tuple_sets.size() > 1);
     session_event->set_response(ss.str());
     end_trx_if_need(session, trx, true);
     return rc;
@@ -629,7 +633,7 @@ RC ExecuteStage::dfs(std::vector<TupleSet> &tuple_sets, std::vector<Condition> &
             }
             const TupleValue *left_v = values[left_idx].get();
             const TupleValue *right_v = values[right_idx].get();
-            if (cmp(left_v, right_v, i.comp)) {
+            if (!cmp(left_v, right_v, i.comp)) {
                 return RC::MISMATCH;
             }
         }
@@ -655,13 +659,13 @@ RC ExecuteStage::dfs(std::vector<TupleSet> &tuple_sets, std::vector<Condition> &
         auto &cur_tuple = cur->get(i);
         int cur_size = cur_tuple.size();
         for (int j = 0; j < cur_size; j++) {
+            
             values[value_num + j] = cur_tuple.get_pointer(j);
         }
         RC rc = dfs(tuple_sets, remain_conditions, values, value_num + cur_size, result, cur + 1);
         if (rc != RC::SUCCESS && rc != RC::MISMATCH) {
             return rc;
         }
-        value_num -= cur_size;
     }
     return RC::SUCCESS;
 }
