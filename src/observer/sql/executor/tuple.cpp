@@ -153,13 +153,13 @@ void TupleSet::merge(Tuple &&tuple) {
     }
     // 聚合运算的每一个阶段，tuples_ 都只含有一个 Tuple
     const std::vector<std::shared_ptr<TupleValue>> old_values = tuples_[0].values();
-    // int value_idx = 0;
+    int value_idx = 0;
     for (std::shared_ptr<TupleValue> old_value : old_values) {
         if (old_value->aggregation_type() == None) {
             tuples_.emplace_back(std::move(tuple));
             return;
         }
-        // old_value->merge(tuple.get(value_idx++));
+        old_value->merge(tuple.get(value_idx++));
     }
     return;
 }
@@ -170,12 +170,9 @@ void TupleSet::merge(Tuple &&tuple, int group_index) {
         return;
     }
     const std::vector<std::shared_ptr<TupleValue>> old_values = tuples_[group_index].values();
-    // int value_idx = 0;
-    for (std::shared_ptr<TupleValue> old_value : old_values) {
-        if (old_value->aggregation_type() == None) {
-            tuples_.emplace_back(std::move(tuple));
-            return;
-        }
+    int value_idx = 0;
+    for (std::shared_ptr<TupleValue> old_value: old_values) {
+        old_value->merge(tuple.get(value_idx++));
     }
     return;
 }
@@ -230,18 +227,18 @@ void TupleSet::print(std::ostream &os, bool multi) const {
         if (values.empty()) continue;
         
         auto size = schema_.fields().size();
-        LOG_WARN("%d %d",values.size(),size);
+        // LOG_WARN("%d %d",values.size(),size);
         for (size_t i = 0; i < size - 1; i++) {
             const auto &value = values[i];
             value->to_string(os);
             os << " | ";
         }
-        LOG_WARN("%d %d",values.size(),size);
+        // LOG_WARN("%d %d",values.size(),size);
         values[size - 1]->to_string(os); 
-        LOG_WARN("%d %d",values.size(),size);
+        // LOG_WARN("%d %d",values.size(),size);
         os << std::endl;
     }
-    LOG_WARN("print end");
+    // LOG_WARN("print end");
 }
 
 void TupleSet::set_schema(const TupleSchema &schema) { schema_ = schema; }

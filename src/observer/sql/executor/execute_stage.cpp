@@ -254,15 +254,15 @@ RC ExecuteStage::check_groupby(const Selects &selects, Table **tables) {
 RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema &schema_result) {
     for (int i = selects.attr_num - 1; i >= 0; i--) {
         const RelAttr &attr = selects.attributes[i];
-        if (attr.relation_name != nullptr) {
+        if (attr.relation_name != nullptr && (strcmp("*", attr.attribute_name) != 0 || attr.aggregation_type == None)) {
             int flag = 0;
             for (int j = 0; j < (int)selects.relation_num; j++) {
                 if (strcmp(attr.relation_name, selects.relations[j]) == 0) {
-                    // printf("%s %s\n",attr.relation_name,selects.relations[j]);
                     flag = 1;
                     if (strcmp("*", attr.attribute_name) == 0) {
                         TupleSchema tmp;
                         TupleSchema::from_table(tables[j], tmp);
+                        // printf("%d\n",attr.aggregation_type);
                         schema_result.append(tmp);
                     } else if (tables[j]->table_meta().field(attr.attribute_name) == nullptr) {
                         LOG_WARN("No such field [%s] in table [%s]", attr.attribute_name,
@@ -271,10 +271,6 @@ RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema 
                     } else
                         schema_add_field(tables[j], attr.attribute_name, attr.aggregation_type,
                                          schema_result);
-                }
-                else
-                {
-                    // printf("%s %s\n",attr.relation_name,selects.relations[j]);
                 }
             }
             if (flag == 0) {
@@ -288,10 +284,11 @@ RC ExecuteStage::check_attr(const Selects &selects, Table **tables, TupleSchema 
                 schema_result.append(tmp);
             }
         } else if (attr.aggregation_type != None &&
-                   (attr.is_const == 1 && strcmp("*", attr.attribute_name) == 0)) {
+                   (attr.is_const == 1 || strcmp("*", attr.attribute_name) == 0)) {
             auto field = tables[0]->table_meta().field(0);
             schema_result.add(field->type(), tables[0]->name(), attr.attribute_name,
                               attr.aggregation_type);
+            // puts("YES");
         }
         if (attr.aggregation_type == AggregationFunc::None) {
             int flag = 0;
@@ -433,34 +430,49 @@ std::pair<bool, std::string> is_single_query(const Selects &selects) {
 }
 
 void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples,
-                const TupleSchema group_by_schema) {
+                const TupleSchema groupby_schema) {
     const TupleSchema &schema = all_tuples.schema();
     const auto &output_schema = output_tuples.schema();
     const auto &output_fields = output_schema.fields();
+    // output_schema.print(std::cout,1);
+    // schema.print(std::cout,1);
     int output_size = output_fields.size();
+    // printf("output_size is %d\n",output_size);
     for (auto &all_tuple : all_tuples.tuples()) {
+
         Tuple output_tuple;
         for (int i = 0; i < output_size; i++) {
             const auto &field = output_fields[i];
             int val_idx = schema.index_of_field(field.table_name(), field.field_name(), None);
-            TupleValue *temp_val = all_tuple.get(val_idx).clone();
+            // std::cout<<field.table_name() <<" "<<field.field_name()<<"\n";
+            // printf("val_idx is %d\n",val_idx);
+            TupleValue *temp_val;
+            if(val_idx>=0)
+                temp_val = all_tuple.get(val_idx).clone();
+            else
+                temp_val = new IntValue(atoi(field.field_name()));
             temp_val->set_aggregation_type(field.aggregation_type());
+            // printf("val_idx is %d\n",val_idx);
             output_tuple.add(temp_val);
         }
         int group_index = -1;
         for (size_t i = 0; i < output_tuples.size(); i++) {
             bool equal = true;
-            const auto &group_by_fields = group_by_schema.fields();
-            for (const auto &field : group_by_fields) {
+            const auto &groupby_fields = groupby_schema.fields();
+            for (const auto &field : groupby_fields) {
                 int field_index = -1;
-
                 for (int j = output_size - 1; j >= 0; j--) {
                     if (strcmp(field.table_name(), output_schema.fields()[j].table_name()) == 0 &&
                         strcmp(field.field_name(), output_schema.fields()[j].field_name()) == 0) {
                         field_index = j;
                         break;
                     }
+                    else
+                    {
+                        printf("table :%s %s\n attr:%s %s\n",field.table_name(), output_schema.fields()[j].table_name(),field.field_name(), output_schema.fields()[j].field_name());
+                    }
                 }
+                // printf("field_index is %d\n",field_index);
 
                 const auto &in_output = output_tuples.get(i).get(field_index);
                 const auto &not_in_output = output_tuple.get(field_index);
@@ -475,6 +487,7 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples,
                 break;
             }
         }
+        // printf("%d\n",group_index);
         output_tuples.merge(std::move(output_tuple), group_index);
     }
 }
@@ -494,6 +507,16 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     Session *session = session_event->get_client()->session;
     Trx *trx = session->current_trx();
     Selects &selects = sql->sstr.selection;
+    std::stringstream ss;
+    int all_agg = 1,none_agg = 1;
+    for (size_t i = 0; i < selects.attr_num; i++)
+    {
+        auto &attr = selects.groupby_attrs[i];
+        if(attr.aggregation_type == None)
+            all_agg = 0;
+        else
+            none_agg = 0; 
+    }
     std::pair<bool, std::string> single_query = is_single_query(selects);
     if (single_query.first) {
         for (int i = 0; i < (int)selects.groupby_num; i++) {
@@ -508,6 +531,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
                 attr.relation_name = strdup(single_query.second.c_str());
             }
         }
+
         for (int i = 0; i < (int)selects.attr_num; i++) {
             auto &attr = selects.attributes[i];
             if (!attr.is_const && attr.relation_name == nullptr) {
@@ -519,10 +543,18 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     Table *tables[selects.relation_num];
     TupleSchema schema_result;
     rc = init_select(db, selects, tables, schema_result);
+    // schema_result.print(std::cout,false);
     if (rc != RC::SUCCESS) {
         return rc;
     }
-
+    if(selects.groupby_num > 0)
+    {
+        schema_result.clear();
+        for (size_t i = 0; i < selects.relation_num; i++) {
+            TupleSchema::from_table(tables[i], schema_result);
+        }
+    }
+    
     // 把所有的表和只跟这张表关联的 condition 都拿出来，生成最底层的 select 执行节点
     std::vector<SelectExeNode *> select_nodes;
     for (size_t i = 0; i < selects.relation_num; i++) {
@@ -539,7 +571,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         }
         select_nodes.push_back(select_node);
     }
-
+    // puts("YES");
     if (select_nodes.empty()) {
         LOG_ERROR("No table given");
         end_trx_if_need(session, trx, false);
@@ -560,22 +592,10 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
             tuple_sets.push_back(std::move(tuple_set));
         }
     }
-    TupleSchema groupby_schema;
-    for (int i = selects.groupby_num - 1; i >= 0; i--) {
-        const RelAttr &attr = selects.groupby_attrs[i];
-        if (selects.relation_num > 1) {
-            groupby_schema.add(UNDEFINED, attr.relation_name, attr.attribute_name, None);
-        } else {
-            groupby_schema.add(UNDEFINED, selects.relations[0], attr.attribute_name, None);
-        }
-    }
-    // puts("Enter");
-    std::stringstream ss;
+
     TupleSet output_result;
-    
     if (tuple_sets.size() > 1) {
         // 本次查询了多张表，需要做join操作
-        // TupleSet output(output_schema);
         std::vector<Condition> remain_conditions;
         for (int i = 0; i < (int)selects.condition_num; i++) {
             const Condition &condition = selects.conditions[i];
@@ -587,41 +607,60 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         output_result.set_schema(schema_result);
         do_cartesian(tuple_sets, remain_conditions, output_result);
         output_result.set_schema(schema_result);
+        // printf("%d \n",output_result.size());
         
     } else {
         // 当前只查询一张表，直接返回结果即可
-        // puts("FUCK YOU");
+        output_result = std::move(tuple_sets.front());
+        // printf("%d\n",output_result.get_schema().fields().size());
         
-        TupleSet &output = tuple_sets.front();
-        output_result.set_schema(schema_result);
-        if (selects.groupby_num > 0){
-            // printf("%d \n",output.size());
-            output_result.clear();
-            check_attr(selects, tables, schema_result);
-            TupleSchema temp(schema_result);
-            temp.append(groupby_schema);
-            TupleSet ouput_after_group(temp);
-            do_groupby(output, ouput_after_group, groupby_schema);
-            printf("%d \n",schema_result.fields().size());
-            ouput_after_group.set_schema(schema_result);
-            // ouput_after_group.print(ss, false);
-        }
-        else
-        {
-            output_result = std::move(tuple_sets.front());
-            // output_result.print(ss, tuple_sets.size() > 1);
-        }
-        
+        // output_result.get_schema().print(std::cout,false);
+        // puts("YES2");
     }
 
     // group-by
+    TupleSchema groupby_schema;
+    for (int i = selects.groupby_num - 1; i >= 0; i--) {
+        const RelAttr &attr = selects.groupby_attrs[i];
+        if (selects.relation_num > 1) {
+            groupby_schema.add(UNDEFINED, attr.relation_name, attr.attribute_name, None);
+        } else {
+            groupby_schema.add(UNDEFINED, selects.relations[0], attr.attribute_name, None);
+        }
+        // std::cout << selects.relations[0]<<"\n";
+        // groupby_schema.print(std::cout,0);
+    }
     if (selects.groupby_num > 0) {
-        // check_attr(selects, tables, output_schema);
-        // TupleSchema temp(output_schema);
-        // temp.append(group_by_schema);
-        // TupleSet ouput_after_group(temp);
-        // do_groupby(output_result, ouput_after_group, group_by_schema);
-        // ouput_after_group.set_schema(output_schema);
+        // printf("%d \n",output_result.size());
+        TupleSet output = std::move(output_result);
+        // output.set_schema(schema_result);
+        // output_result.set_schema(schema_result);
+        
+        // output_result.clear();
+        schema_result.clear();
+        check_attr(selects, tables, schema_result);
+        // schema_result.print(std::cout,false);
+        TupleSchema temp(schema_result);
+        
+        // groupby_schema.print(std::cout,0);
+        temp.append(groupby_schema);
+        TupleSet ouput_after_group(temp);
+        do_groupby(output, ouput_after_group, groupby_schema);
+
+        // printf("%d \n",schema_result.fields().size());
+        // ouput_after_group.set_schema(schema_result);
+        // ouput_after_group.print(ss, false);
+        output_result = std::move(ouput_after_group);
+    }
+    else{
+        if(!none_agg && !all_agg)
+        {
+
+        }
+        else if(all_agg)
+        {
+            
+        }
     }
 
     // order-by
@@ -629,13 +668,11 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         output_result.sort(selects.orderby_num, selects.orderby_attrs);
     }
 
-    
-
     for (SelectExeNode *&tmp_node : select_nodes) {
         delete tmp_node;
     }
 
-    std::stringstream ss;
+    
     output_result.print(ss, tuple_sets.size() > 1);
     session_event->set_response(ss.str());
     end_trx_if_need(session, trx, true);
@@ -726,13 +763,14 @@ bool match_table(const Selects &selects, const char *table_name_in_condition,
 RC create_selection_executor(Trx *trx, Selects &selects, const char *db, const char *table_name,
                              SelectExeNode &select_node) {
     // 列出跟这张表关联的Attr
+    // puts("YES");
     TupleSchema schema;
     Table *table = DefaultHandler::get_default().find_table(db, table_name);
     if (nullptr == table) {
         LOG_WARN("No such table [%s] in db [%s]", table_name, db);
         return RC::SCHEMA_TABLE_NOT_EXIST;
     }
-
+    // puts("YES");
     for (int i = selects.attr_num - 1; i >= 0; i--) {
         const RelAttr &attr = selects.attributes[i];
         if (nullptr == attr.relation_name || 0 == strcmp(table_name, attr.relation_name)) {
@@ -746,12 +784,14 @@ RC create_selection_executor(Trx *trx, Selects &selects, const char *db, const c
                     continue;
                 } else {
                     TupleSchema::from_table(table, schema);
+                    printf("%s \n",table->name());
                 }
                 break;
-            } else if (attr.aggregation_type != None && attr.is_const) {  // count(1)
-                if (attr.aggregation_type != AggregationFunc::Count) {
-                    return RC::MISMATCH;
-                }
+            } else if (attr.aggregation_type != None && attr.is_const) {  
+                // if (attr.aggregation_type != AggregationFunc::Count) {
+                //     return RC::MISMATCH;
+                // }
+                // puts("YES");
                 schema.add(INTS, table->name(), attr.attribute_name, attr.aggregation_type);
             } else {
                 RC rc = schema_add_field(table, attr.attribute_name, attr.aggregation_type, schema);
@@ -799,6 +839,7 @@ RC create_selection_executor(Trx *trx, Selects &selects, const char *db, const c
                              condition.right_attr.aggregation_type, schema);
         }
     }
+    // puts("YES");
     // orderby
     for (int i = selects.orderby_num - 1; i >= 0; i--) {
         OrderBy &order_by = selects.orderby_attrs[i];
@@ -814,3 +855,4 @@ RC create_selection_executor(Trx *trx, Selects &selects, const char *db, const c
     }
     return select_node.init(trx, table, std::move(schema), std::move(condition_filters));
 }
+

@@ -28,6 +28,7 @@ public:
     virtual TupleValue *clone() const = 0;
     virtual void to_string(std::ostream &os) const = 0;
     virtual int compare(const TupleValue &other) const = 0;
+    virtual void merge(const TupleValue &other) = 0;
     AggregationFunc aggregation_type() {
         return aggregation_type_;
     }
