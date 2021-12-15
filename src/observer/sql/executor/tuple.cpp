@@ -11,8 +11,8 @@ See the Mulan PSL v2 for more details. */
 // Created by Wangyunlai on 2021/5/14.
 //
 
-#include "common/log/log.h"
 #include "sql/executor/tuple.h"
+#include "common/log/log.h"
 #include "storage/common/table.h"
 
 #include <algorithm>
@@ -87,10 +87,9 @@ void TupleSchema::append(const TupleSchema &other) {
     }
 }
 
-int TupleSchema::index_of_field(const char *table_name, const char *field_name,
-                                const AggregationFunc agg_type) const {
-    const int size = fields_.size();
-    for (int i = 0; i < size; i++) {
+size_t TupleSchema::index_of_field(const char *table_name, const char *field_name,
+                                   const AggregationFunc agg_type) const {
+    for (size_t i = 0; i < fields_.size(); i++) {
         const TupleField &field = fields_[i];
         if (0 == strcmp(field.table_name(), table_name) &&
             0 == strcmp(field.field_name(), field_name) && field.aggregation_type() == agg_type) {
@@ -154,7 +153,7 @@ void TupleSet::merge(Tuple &&tuple) {
     }
     // 聚合运算的每一个阶段，tuples_ 都只含有一个 Tuple
     const std::vector<std::shared_ptr<TupleValue>> old_values = tuples_[0].values();
-    int value_idx = 0;
+    // int value_idx = 0;
     for (std::shared_ptr<TupleValue> old_value : old_values) {
         if (old_value->aggregation_type() == None) {
             tuples_.emplace_back(std::move(tuple));
@@ -165,13 +164,13 @@ void TupleSet::merge(Tuple &&tuple) {
     return;
 }
 
-void TupleSet::merge(Tuple &&tuple,int group_index) {
+void TupleSet::merge(Tuple &&tuple, int group_index) {
     if (tuples_.empty() || group_index == -1) {
         tuples_.emplace_back(std::move(tuple));
         return;
     }
     const std::vector<std::shared_ptr<TupleValue>> old_values = tuples_[group_index].values();
-    int value_idx = 0;
+    // int value_idx = 0;
     for (std::shared_ptr<TupleValue> old_value : old_values) {
         if (old_value->aggregation_type() == None) {
             tuples_.emplace_back(std::move(tuple));
@@ -188,14 +187,15 @@ void TupleSet::clear() {
 
 /**
  * @brief Generate a funtion that to be used as the third parameter of std::stable_sort.
- * 
+ *
  * @param attr Sort key.
  * @return std::function<bool(const Tuple &, const Tuple &)>
  */
 std::function<bool(const Tuple &, const Tuple &)> TupleSet::get_cmp_func(const OrderBy &attr) {
-    int index = schema_.index_of_field(attr.attr.relation_name, attr.attr.attribute_name, AggregationFunc::None);
+    int index = schema_.index_of_field(attr.attr.relation_name, attr.attr.attribute_name,
+                                       AggregationFunc::None);
     assert(index != -1);
-    return [attr, index] (const Tuple &u, const Tuple &v) -> bool {
+    return [attr, index](const Tuple &u, const Tuple &v) -> bool {
         int res = u.values().at(index)->compare(*v.values().at(index));
         if (attr.order_type == OrderType::Asc) {
             return res < 0;
@@ -227,14 +227,14 @@ void TupleSet::print(std::ostream &os, bool multi) const {
 
     for (const Tuple &item : tuples_) {
         const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
-
+        if (values.empty()) continue;
         auto size = schema_.fields().size();
-        for (int i = 0; i < size - 1; i++) {
+        for (size_t i = 0; i < size - 1; i++) {
             const auto &value = values[i];
             value->to_string(os);
             os << " | ";
         }
-        values[size - 1]->to_string(os);
+        values[size - 1]->to_string(os); 
         os << std::endl;
     }
 }
@@ -245,7 +245,7 @@ const TupleSchema &TupleSet::get_schema() const { return schema_; }
 
 bool TupleSet::is_empty() const { return tuples_.empty(); }
 
-int TupleSet::size() const { return tuples_.size(); }
+size_t TupleSet::size() const { return tuples_.size(); }
 
 const Tuple &TupleSet::get(int index) const { return tuples_[index]; }
 
