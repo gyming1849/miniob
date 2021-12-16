@@ -442,11 +442,12 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples,
     for (auto &all_tuple : all_tuples.tuples()) {
 
         Tuple output_tuple;
+        printf("all_tuple is lenth %d\n",all_tuple.size());
         for (int i = 0; i < output_size; i++) {
             const auto &field = output_fields[i];
             int val_idx = schema.index_of_field(field.table_name(), field.field_name(), None);
-            // std::cout<<field.table_name() <<" "<<field.field_name()<<"\n";
-            // printf("val_idx is %d\n",val_idx);
+            std::cout<<field.table_name() <<" "<<field.field_name()<<"\n";
+            printf("val_idx is %d\n",val_idx);
             TupleValue *temp_val;
             if(val_idx>=0)
                 temp_val = all_tuple.get(val_idx).clone();
@@ -819,6 +820,9 @@ RC create_selection_executor(Trx *trx, Selects &selects, const char *db, const c
                 // }
                 // puts("YES");
                 schema.add(INTS, table->name(), attr.attribute_name, attr.aggregation_type);
+            }else if (attr.aggregation_type != None && !attr.is_const) {  
+                puts("FK");
+                TupleSchema::from_table(table, schema);
             } else {
                 RC rc = schema_add_field(table, attr.attribute_name, attr.aggregation_type, schema);
                 if (match_table(selects, attr.relation_name, table_name) && rc != RC::SUCCESS) {
