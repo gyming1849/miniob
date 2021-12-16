@@ -42,7 +42,7 @@ public:
 
     const std::vector<std::shared_ptr<TupleValue>> &values() const { return values_; }
 
-    int size() const { return values_.size(); }
+    size_t size() const { return values_.size(); }
 
     const TupleValue &get(int index) const { return *values_[index]; }
 
@@ -81,7 +81,6 @@ public:
     void add(AttrType type, const char *table_name, const char *field_name,
              AggregationFunc aggregation_type);
     void add_if_not_exists(AttrType type, const char *table_name, const char *field_name);
-    // void merge(const TupleSchema &other);
     void append(const TupleSchema &other);
 
     const std::vector<TupleField> &fields() const { return fields_; }

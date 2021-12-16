@@ -16,11 +16,9 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/parser/parse_defs.h"
 
-#include <ostream>
-#include <string>
-#include <string.h>
-#include <iomanip>
+#include <cstring>
 #include <iostream>
+#include <string>
 
 class TupleValue {
 public:
@@ -30,12 +28,8 @@ public:
     virtual void to_string(std::ostream &os) const = 0;
     virtual int compare(const TupleValue &other) const = 0;
     virtual void merge(const TupleValue &other) = 0;
-    AggregationFunc aggregation_type() {
-        return aggregation_type_;
-    }
-    void set_aggregation_type(AggregationFunc aggregation) { 
-        aggregation_type_ = aggregation; 
-    }
+    AggregationFunc aggregation_type() { return aggregation_type_; }
+    void set_aggregation_type(AggregationFunc aggregation) { aggregation_type_ = aggregation; }
     int get_count() const { return count; }
 
 protected:
@@ -45,56 +39,16 @@ protected:
 
 class IntValue : public TupleValue {
 public:
-    explicit IntValue(int value) : value_(value), avg_(value){}
+    explicit IntValue(int value) : value_(value), avg_(value) {}
 
     IntValue *clone() const { return new IntValue(*this); }
 
-    void to_string(std::ostream &os) const override { 
-        switch (aggregation_type_) {
-            case Count:
-                os << count;
-                break;
-            case Avg:
-                os << std::fixed<< std::setprecision(2) << avg_;
-                break;
-            default:
-                os << value_; 
-                break;
-        }
-    }
+    void to_string(std::ostream &os) const override;
+    void merge(const TupleValue &other);
 
     int compare(const TupleValue &other) const override {
         const IntValue &int_other = (const IntValue &)other;
         return value_ - int_other.value_;
-    }
-    void merge(const TupleValue &other) {
-        const IntValue &int_other = (const IntValue &)other;
-        this->to_string(std::cout);
-        putchar(' ');
-        other.to_string(std::cout);
-        putchar(' ');
-        std::cout<<aggregation_type_;
-        puts("");
-        switch (aggregation_type_) {
-            case Count: {
-                count++;
-            } break;
-            case Sum: {
-                value_ = value_ + int_other.value_;
-            } break;
-            case Avg: {
-                int pre_count = count++;
-                avg_ = (avg_ * pre_count + int_other.value_) / count;
-            } break;
-            case Max: {
-                if (compare(int_other) < 0) value_ = int_other.value_;
-            } break;
-            case Min: {
-                if (compare(int_other) > 0) value_ = int_other.value_;
-            }
-            default: {
-            }
-        }
     }
 
 private:
@@ -108,24 +62,13 @@ public:
 
     FloatValue *clone() const { return new FloatValue(*this); }
 
-    void to_string(std::ostream &os) const override { 
-        switch (aggregation_type_) {
-            case Count:
-                os << count;
-                break;
-            case Avg:
-                os << std::fixed<< std::setprecision(2) << avg_;
-                break;
-            default:
-                os << std::fixed<< std::setprecision(2) << value_;
-                break;
-        }
-    }
+    void to_string(std::ostream &os) const override;
+    void merge(const TupleValue &other);
 
     int compare(const TupleValue &other) const override {
         const FloatValue &float_other = (const FloatValue &)other;
         float result = value_ - float_other.value_;
-        if (result > 0) {  
+        if (result > 0) {
             return 1;
         }
         if (result < 0) {
@@ -133,26 +76,7 @@ public:
         }
         return 0;
     }
-    void merge(const TupleValue &other) {
-        const FloatValue &int_other = (const FloatValue &)other;
-        switch (aggregation_type_) {
-            case Count: {
-                count++;
-            } break;
-            case Avg: {
-                int pre_count = count++;
-                avg_ = (avg_ * pre_count + int_other.value_) / count;
-            } break;
-            case Max: {
-                if (compare(int_other) < 0) value_ = int_other.value_;
-            } break;
-            case Min: {
-                if (compare(int_other) > 0) value_ = int_other.value_;
-            }
-            default: {
-            }
-        }
-    }
+
 private:
     float value_;
     double avg_;
@@ -165,39 +89,14 @@ public:
 
     StringValue *clone() const { return new StringValue(*this); }
 
-    void to_string(std::ostream &os) const override { 
-        switch (aggregation_type_) {
-            case Count:
-                os << count;
-                break;
-            default:
-                os <<  value_;
-                break;
-        }
-    }
+    void to_string(std::ostream &os) const override;
+    void merge(const TupleValue &other);
 
     int compare(const TupleValue &other) const override {
         const StringValue &string_other = (const StringValue &)other;
         return strcmp(value_.c_str(), string_other.value_.c_str());
     }
-    void merge(const TupleValue &other) {
-        const StringValue &int_other = (const StringValue &)other;
-        switch (aggregation_type_) {
-            case Count: {
-                count++;
-            } break;
-            case Avg: {
-            } break;
-            case Max: {
-                if (compare(int_other) < 0) value_ = int_other.value_;
-            } break;
-            case Min: {
-                if (compare(int_other) > 0) value_ = int_other.value_;
-            }
-            default: {
-            }
-        }
-    }
+
 private:
     std::string value_;
 };
