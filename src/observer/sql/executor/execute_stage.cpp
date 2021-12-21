@@ -430,38 +430,69 @@ std::pair<bool, std::string> is_single_query(const Selects &selects) {
     return std::make_pair(false, std::string());
 }
 
-void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples,
-                const TupleSchema groupby_schema) {
-    const TupleSchema &schema = all_tuples.schema();
-    const auto &output_schema = output_tuples.schema();
-    const auto &output_fields = output_schema.fields();
-    // output_schema.print(std::cout,1);
-    schema.print(std::cout,1);
-    int output_size = output_fields.size();
-    // printf("output_size is %d\n",output_size);
-    for (auto &all_tuple : all_tuples.tuples()) {
-
-        Tuple output_tuple;
-        printf("all_tuple is lenth %d\n",all_tuple.size());
-        for (int i = 0; i < output_size; i++) {
-            const auto &field = output_fields[i];
-            int val_idx = schema.index_of_field(field.table_name(), field.field_name(), None);
-            std::cout<<field.table_name() <<" "<<field.field_name()<<"\n";
-            printf("val_idx is %d\n",val_idx);
-            TupleValue *temp_val;
-            if(val_idx>=0)
-                temp_val = all_tuple.get(val_idx).clone();
+void get_fitset(const TupleSet &old_tuples,TupleSet &new_tuples)
+{
+    const TupleSchema new_schema = new_tuples.schema();
+    const TupleSchema old_schema = old_tuples.schema();
+    const auto new_fields = new_schema.fields();
+    const auto old_fields = old_schema.fields();
+    int new_size = new_fields.size();
+    int old_size = old_fields.size();
+    int val_pos[MAX_NUM];
+    for (int i = 0; i < new_size; i++){
+        val_pos[i] = old_size;
+        for(int j = 0;j < old_size; j++)
+            if(strcmp(new_fields[i].table_name(),old_fields[j].table_name())==0&&strcmp(new_fields[i].field_name(),old_fields[j].field_name())==0)
+            {    
+                val_pos[i] = j;
+                break;
+            }
+    //         else
+    //         {
+    //             printf("%s %s %s %s\n",new_fields[i].table_name(),old_fields[i].table_name(),)
+    //         }
+    }
+    printf("old size is %d\n",old_size);
+    for (auto &old_tuple : old_tuples.tuples())
+    {
+        Tuple new_tuple;
+        TupleValue *temp_val;
+        for (int i = 0; i < new_size; i++){
+            int pos = val_pos[i];
+            printf("pos is %d \n",pos);
+            if(pos<old_size)
+            {
+                temp_val = old_tuple.get(pos).clone();
+            }
             else
             {
-                temp_val = new FloatValue((float)atoi(field.field_name()));
+                temp_val = new FloatValue((float)atoi(new_fields[i].field_name()));
             }
-            temp_val->set_aggregation_type(field.aggregation_type());
-            // printf("val_idx is %d\n",val_idx);
-            output_tuple.add(temp_val);
+            temp_val->set_aggregation_type(new_fields[i].aggregation_type());
+            new_tuple.add(temp_val);
         }
+        new_tuples.add(std::move(new_tuple));
+    }
+    new_tuples.print(std::cout,1);
+}
+
+void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples,
+                const TupleSchema groupby_schema,const TupleSchema result_schema) {
+    const TupleSchema &schema = all_tuples.schema();
+    auto output_schema = result_schema;
+    output_schema.append(groupby_schema);
+    output_tuples.set_schema(output_schema);
+    const auto &output_fields = output_schema.fields();
+    // output_schema.print(std::cout,1);
+    // schema.print(std::cout,1);
+    int output_size = output_fields.size();
+    // printf("output_size is %d\n",output_size);
+    TupleSet temp_set(output_schema);
+    get_fitset(all_tuples,temp_set);
+    for (auto &output_tuple : temp_set.tuples()) {
         int group_index = -1;
         for (size_t i = 0; i < output_tuples.size(); i++) {
-            bool equal = true;
+            bool flag = true;
             const auto &groupby_fields = groupby_schema.fields();
             for (const auto &field : groupby_fields) {
                 int field_index = -1;
@@ -478,15 +509,13 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples,
                 }
                 // printf("field_index is %d\n",field_index);
 
-                const auto &in_output = output_tuples.get(i).get(field_index);
-                const auto &not_in_output = output_tuple.get(field_index);
 
-                if (in_output.compare(not_in_output) != 0) {
-                    equal = false;
+                if (output_tuples.get(i).get(field_index).compare(output_tuple.get(field_index)) != 0) {
+                    flag = false;
                     break;
                 }
             }
-            if (equal) {
+            if (flag) {
                 group_index = i;
                 break;
             }
@@ -502,10 +531,17 @@ void do_groupby(const TupleSet &all_tuples, TupleSet &output_tuples,
         // }
         // values[size - 1]->to_string(std::cout);
         // puts("");
-        
-        output_tuples.merge(std::move(output_tuple), group_index);
-        // output_tuples.print(std::cout,1);
+        Tuple cp_tuple;
+        TupleValue *temp_val;
+        for(int j=0;j<output_size;j++)
+        {
+            temp_val = output_tuple.get(j).clone();
+            cp_tuple.add(temp_val);
+        }
+        output_tuples.merge(std::move(cp_tuple), group_index);
+        // output_tuples.print(std::cout,1);select avg(s.sid) from s,sc where sc.sid = s.sid;select count(s.sid) from s,sc where sc.sid = s.sid group by sc.cid;
     }
+    output_tuples.set_schema(result_schema);
 }
 
 /**
@@ -666,26 +702,13 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         // std::cout << selects.relations[0]<<"\n";
         // groupby_schema.print(std::cout,0);
     }
+    TupleSchema output_schema;
+    check_attr(selects, tables, output_schema);
     if (selects.groupby_num > 0 || all_agg) {
-        // printf("%d \n",output_result.size());
         TupleSet output = std::move(output_result);
-        // output.set_schema(schema_result);
         output.set_schema(schema_result);
-        
-        // output_result.clear();
-        schema_result.clear();
-        check_attr(selects, tables, schema_result);
-        // schema_result.print(std::cout,false);
-        TupleSchema temp(schema_result);
-        
-        // groupby_schema.print(std::cout,0);
-        temp.append(groupby_schema);
-        TupleSet ouput_after_group(temp);
-        do_groupby(output, ouput_after_group, groupby_schema);
-
-        // printf("%d \n",schema_result.fields().size());
-        ouput_after_group.set_schema(schema_result);
-        // ouput_after_group.print(ss, false);
+        TupleSet ouput_after_group;
+        do_groupby(output, ouput_after_group, groupby_schema,output_schema);
         output_result = std::move(ouput_after_group);
     }
 
@@ -822,6 +845,7 @@ RC create_selection_executor(Trx *trx, Selects &selects, const char *db, const c
                 schema.add(INTS, table->name(), attr.attribute_name, attr.aggregation_type);
             }else if (attr.aggregation_type != None && !attr.is_const) {  
                 puts("FK");
+                
                 TupleSchema::from_table(table, schema);
             } else {
                 RC rc = schema_add_field(table, attr.attribute_name, attr.aggregation_type, schema);
